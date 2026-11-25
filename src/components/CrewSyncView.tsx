@@ -1,0 +1,546 @@
+'use client';
+
+import React, { useState } from 'react';
+import {
+  FileText,
+  Handshake,
+  Plus,
+  RefreshCw,
+  TrendingDown,
+  Users,
+} from 'lucide-react';
+import { VenueClashResult } from '@/lib/coordination/clashCheck';
+import {
+  AIRecommendation,
+  CampusEvent,
+  Club,
+  ClubActivityMetric,
+  EventReport,
+  UserRole,
+  Venue,
+} from '@/types/domain';
+
+interface VolunteerCandidate {
+  volunteerId: string;
+  name: string;
+  department: string;
+  year: number;
+  matchedSkills: string[];
+  availabilityWindows: string[];
+  fitReason: string;
+}
+
+interface ClubHealthAssessment {
+  clubId: string;
+  clubName: string;
+  status: 'insufficient_data' | 'declining_activity' | 'healthy';
+  message: string;
+  revivalSuggestions: string[];
+}
+
+interface CrewSyncViewProps {
+  role: UserRole;
+  events: CampusEvent[];
+  clubs: Club[];
+  venues: Venue[];
+  clashes: VenueClashResult[];
+  recommendations: AIRecommendation[];
+  clubMetrics: ClubActivityMetric[];
+  onOpenCreateEvent: () => void;
+  onResolveClash: (eventId: string, newVenueId: string) => Promise<void>;
+  onRecommendationAction: (
+    id: string,
+    status: 'accepted' | 'dismissed'
+  ) => Promise<void>;
+  onRecommendationAdded: (rec: AIRecommendation) => void;
+}
+
+export default function CrewSyncView({
+  role,
+  events,
+  clubs,
+  clashes,
+  recommendations,
+  clubMetrics,
+  onOpenCreateEvent,
+  onResolveClash,
+  onRecommendationAction,
+  onRecommendationAdded,
+}: CrewSyncViewProps) {
+  const [coordLoading, setCoordLoading] = useState(false);
+  const [collabLoading, setCollabLoading] = useState(false);
+  const [skillsQuery, setSkillsQuery] = useState('Frontend, Hardware, Media');
+  const [volunteerCandidates, setVolunteerCandidates] = useState<
+    VolunteerCandidate[]
+  >([]);
+  const [healthAssessments, setHealthAssessments] = useState<
+    ClubHealthAssessment[]
+  >([]);
+  const [reportEventId, setReportEventId] = useState(events[0]?.id ?? '');
+  const [organizerNotes, setOrganizerNotes] = useState('');
+  const [generatedReport, setGeneratedReport] = useState<EventReport | null>(
+    null
+  );
+
+  const getClubName = (id: string) => clubs.find((c) => c.id === id)?.name ?? id;
+
+  const formatTimeRange = (startIso: string, endIso: string) => {
+    const start = new Date(startIso);
+    const end = new Date(endIso);
+    return `${start.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+    })} · ${start.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })}–${end.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })}`;
+  };
+
+  const handleRunCoordination = async () => {
+    setCoordLoading(true);
+    try {
+      const res = await fetch('/api/crew-sync/coordination', {
+        method: 'POST',
+        headers: { 'x-demo-role': role },
+      });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.recommendations)) {
+        for (const rec of data.recommendations) {
+          onRecommendationAdded(rec);
+        }
+      }
+    } finally {
+      setCoordLoading(false);
+    }
+  };
+
+  const handleRunCollaboration = async () => {
+    setCollabLoading(true);
+    try {
+      const res = await fetch('/api/crew-sync/collaborations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-demo-role': role,
+        },
+        body: JSON.stringify({
+          clubId: clubs[0]?.id,
+          eventId: events[0]?.id,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.recommendation) {
+        onRecommendationAdded(data.recommendation);
+      }
+    } finally {
+      setCollabLoading(false);
+    }
+  };
+
+  const handleMatchVolunteers = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const requiredSkills = skillsQuery
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const res = await fetch('/api/crew-sync/volunteers', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-demo-role': role,
+      },
+      body: JSON.stringify({
+        eventId: events[0]?.id,
+        requiredSkills,
+      }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setVolunteerCandidates(data.candidates ?? []);
+    }
+  };
+
+  const handleAssessClubHealth = async () => {
+    const res = await fetch('/api/crew-sync/club-health', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-demo-role': role,
+      },
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setHealthAssessments(data.assessments ?? []);
+    }
+  };
+
+  const handleGenerateReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = await fetch('/api/crew-sync/reports', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-demo-role': role,
+      },
+      body: JSON.stringify({
+        eventId: reportEventId,
+        organizerNotes,
+      }),
+    });
+    const data = await res.json();
+    if (res.ok && data.report) {
+      setGeneratedReport(data.report);
+    }
+  };
+
+  return (
+    <div className="bg-[#F5F7FA] py-10">
+      <div className="max-w-5xl mx-auto px-6 space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-semibold text-[#4D4D4D]">
+              Crew Sync AI
+            </h1>
+            <p className="text-sm text-[#717171]">
+              Four server-side coordination workflows grounded in campus records
+            </p>
+          </div>
+          <button
+            onClick={onOpenCreateEvent}
+            className="inline-flex items-center gap-1.5 bg-[#4CAF4F] hover:bg-[#43A046] text-white text-xs font-medium px-4 py-2.5 rounded transition cursor-pointer self-start"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Create Event
+          </button>
+        </div>
+
+        {/* 01 · Clash Detection */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h2 className="text-lg font-semibold text-[#4D4D4D]">
+                01 · Event Coordination & Clash Check
+              </h2>
+              <p className="text-xs text-[#717171]">
+                Evaluates time overlap + setup/teardown buffers across campus
+                venues
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => void handleRunCoordination()}
+                disabled={coordLoading}
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-[#4CAF4F] hover:bg-[#43A046] text-white font-medium cursor-pointer"
+              >
+                <RefreshCw
+                  className={`h-3.5 w-3.5 ${coordLoading ? 'animate-spin' : ''}`}
+                />
+                Scan & Log Clashes
+              </button>
+              <span
+                className={`text-xs px-2.5 py-1 rounded font-medium ${
+                  clashes.length > 0
+                    ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                    : 'bg-[#E8F5E9] text-[#4CAF4F]'
+                }`}
+              >
+                {clashes.length > 0
+                  ? `${clashes.length} Hard Venue Clash`
+                  : 'All Schedules Clear'}
+              </span>
+            </div>
+          </div>
+
+          {clashes.length === 0 ? (
+            <p className="text-sm text-[#4CAF4F] bg-[#E8F5E9] rounded p-4">
+              No overlapping venue bookings detected.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {clashes.map((clash) => (
+                <div
+                  key={`${clash.eventA.id}-${clash.eventB.id}`}
+                  className="rounded-lg bg-rose-50/70 border border-rose-200 p-4 space-y-3"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-rose-900">
+                      {clash.venue.name} conflict: {clash.eventA.title} (
+                      {getClubName(clash.eventA.clubId)}) vs{' '}
+                      {clash.eventB.title} ({getClubName(clash.eventB.clubId)})
+                    </p>
+                    <p className="text-xs text-rose-700 mt-1">
+                      Overlap:{' '}
+                      {formatTimeRange(clash.overlapStart, clash.overlapEnd)}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-[#717171]">
+                      Feasible alternates for {clash.eventB.title}:
+                    </span>
+                    {clash.alternateVenues.map((alt) => (
+                      <button
+                        key={alt.id}
+                        onClick={() =>
+                          void onResolveClash(clash.eventB.id, alt.id)
+                        }
+                        className="text-xs px-3 py-1.5 rounded bg-[#4CAF4F] hover:bg-[#43A046] text-white font-medium transition cursor-pointer"
+                      >
+                        Move to {alt.name} (cap {alt.capacity})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 02 · Club Collaboration & Explainable Recommendations */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-[#4D4D4D] flex items-center gap-2">
+                <Handshake className="h-4 w-4 text-[#4CAF4F]" />
+                02 · Club Collaboration & Recommendations
+              </h2>
+              <p className="text-xs text-[#717171]">
+                Drafted with source evidence; organizers approve or dismiss
+              </p>
+            </div>
+            <button
+              onClick={() => void handleRunCollaboration()}
+              disabled={collabLoading}
+              className="inline-flex items-center gap-1.5 text-xs px-3.5 py-2 rounded bg-[#4CAF4F] hover:bg-[#43A046] text-white font-medium cursor-pointer self-start"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${collabLoading ? 'animate-spin' : ''}`}
+              />
+              Suggest Collaboration
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {recommendations.map((rec) => (
+              <div
+                key={rec.id}
+                className="rounded-lg bg-[#F5F7FA] border border-gray-200 p-4 space-y-2.5"
+              >
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium text-[#4CAF4F]">
+                    {rec.createdByAgent}
+                  </span>
+                  <span className="capitalize text-[#717171]">
+                    {rec.status.replace('_', ' ')}
+                  </span>
+                </div>
+                <h3 className="font-semibold text-[#4D4D4D]">{rec.title}</h3>
+                <p className="text-sm text-[#717171]">{rec.summary}</p>
+                <p className="text-xs text-[#4D4D4D] bg-white border border-gray-200 rounded p-3">
+                  <strong>Evidence:</strong> {rec.explanation}
+                </p>
+                {rec.status === 'pending_review' && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      onClick={() =>
+                        void onRecommendationAction(rec.id, 'accepted')
+                      }
+                      className="text-xs px-3 py-1.5 rounded bg-[#4CAF4F] hover:bg-[#43A046] text-white font-medium cursor-pointer"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() =>
+                        void onRecommendationAction(rec.id, 'dismissed')
+                      }
+                      className="text-xs px-3 py-1.5 rounded bg-white border border-gray-300 text-[#4D4D4D] hover:bg-gray-50 font-medium cursor-pointer"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 03 · Volunteer Matching & Club Health */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+            <h2 className="text-base font-semibold text-[#4D4D4D] flex items-center gap-2">
+              <Users className="h-4 w-4 text-[#4CAF4F]" />
+              03 · Volunteer Matching
+            </h2>
+            <form onSubmit={handleMatchVolunteers} className="flex gap-2">
+              <input
+                type="text"
+                value={skillsQuery}
+                onChange={(e) => setSkillsQuery(e.target.value)}
+                placeholder="Skills (e.g., Frontend, Hardware, Media)"
+                className="flex-1 text-xs border border-gray-200 rounded px-3 py-2"
+              />
+              <button
+                type="submit"
+                className="text-xs px-3.5 py-2 rounded bg-[#4CAF4F] hover:bg-[#43A046] text-white font-medium cursor-pointer"
+              >
+                Match
+              </button>
+            </form>
+
+            {volunteerCandidates.length === 0 ? (
+              <p className="text-xs text-[#717171]">
+                Click Match to rank consented volunteers by skills and
+                availability.
+              </p>
+            ) : (
+              <div className="space-y-2.5">
+                {volunteerCandidates.map((c) => (
+                  <div
+                    key={c.volunteerId}
+                    className="rounded bg-[#F5F7FA] p-3 space-y-1"
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-[#4D4D4D]">
+                        {c.name} ({c.department})
+                      </p>
+                      <span className="text-[11px] px-2 py-0.5 rounded bg-[#E8F5E9] text-[#4CAF4F]">
+                        {c.matchedSkills.join(', ')}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#717171]">{c.fitReason}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-[#4D4D4D] flex items-center gap-2">
+                <TrendingDown className="h-4 w-4 text-[#4CAF4F]" />
+                03 · Club Health & Revival
+              </h2>
+              <button
+                onClick={() => void handleAssessClubHealth()}
+                className="text-xs px-3 py-1.5 rounded bg-[#4CAF4F] hover:bg-[#43A046] text-white font-medium cursor-pointer"
+              >
+                Run Check
+              </button>
+            </div>
+
+            {healthAssessments.length > 0 ? (
+              <div className="space-y-2.5">
+                {healthAssessments.map((a) => (
+                  <div
+                    key={a.clubId}
+                    className="rounded bg-[#F5F7FA] p-3 space-y-1 text-xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-[#4D4D4D] text-sm">
+                        {a.clubName}
+                      </span>
+                      <span className="capitalize text-[#4CAF4F] font-medium">
+                        {a.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <p className="text-[#717171]">{a.message}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {clubMetrics.map((m) => (
+                  <div
+                    key={`${m.clubId}-${m.periodLabel}`}
+                    className="rounded bg-[#F5F7FA] p-3 flex items-center justify-between text-xs"
+                  >
+                    <div>
+                      <p className="font-medium text-[#4D4D4D]">
+                        {getClubName(m.clubId)}
+                      </p>
+                      <p className="text-[#717171]">{m.periodLabel}</p>
+                    </div>
+                    <div className="text-right text-[#4D4D4D]">
+                      <p>
+                        {m.eventCount} events · {m.registrationsCount} reg
+                      </p>
+                      <p className="text-[#717171]">
+                        {m.attendanceCount} attended
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 04 · Event Intelligence & Post-Event Reports */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-[#4D4D4D] flex items-center gap-2">
+            <FileText className="h-4 w-4 text-[#4CAF4F]" />
+            04 · Event Intelligence & Post-Event Report
+          </h2>
+          <form
+            onSubmit={handleGenerateReport}
+            className="grid grid-cols-1 sm:grid-cols-3 gap-3"
+          >
+            <select
+              value={reportEventId}
+              onChange={(e) => setReportEventId(e.target.value)}
+              className="text-sm border border-gray-200 rounded px-3 py-2 bg-white"
+            >
+              {events.map((ev) => (
+                <option key={ev.id} value={ev.id}>
+                  {ev.title}
+                </option>
+              ))}
+            </select>
+            <input
+              type="text"
+              value={organizerNotes}
+              onChange={(e) => setOrganizerNotes(e.target.value)}
+              placeholder="Organizer notes (optional)"
+              className="text-sm border border-gray-200 rounded px-3 py-2"
+            />
+            <button
+              type="submit"
+              className="bg-[#4CAF4F] hover:bg-[#43A046] text-white text-sm font-medium px-4 py-2 rounded cursor-pointer"
+            >
+              Draft Verified Report
+            </button>
+          </form>
+
+          {generatedReport && (
+            <div className="rounded bg-[#F5F7FA] border border-gray-200 p-4 space-y-2 text-xs">
+              <div className="flex flex-wrap gap-4 font-semibold text-[#4D4D4D]">
+                <span>
+                  Registrations:{' '}
+                  {generatedReport.verifiedMetricsSnapshot.registrationsCount}
+                </span>
+                <span>
+                  Attendance:{' '}
+                  {generatedReport.verifiedMetricsSnapshot.attendanceCount} (
+                  {generatedReport.verifiedMetricsSnapshot.attendanceRate}%)
+                </span>
+                <span>
+                  Submissions:{' '}
+                  {generatedReport.verifiedMetricsSnapshot.submissionCount}
+                </span>
+              </div>
+              <p className="text-sm text-[#4D4D4D] leading-relaxed">
+                {generatedReport.generatedNarrative}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
