@@ -80,85 +80,33 @@ export default function AuthModal({
         return;
       }
       const supabase = createClient();
-    if (!supabase) {
-      setStatusMessage('Supabase client is not configured in .env.local.');
-      setLoading(false);
-      return;
-    }
-
-      if (mode === 'signup') {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              name: name.trim() || email.split('@')[0],
-              department,
-              role: selectedRole,
-            },
-          },
-        });
-        if (error) {
-          setStatusMessage(error.message);
-          return;
-        }
-
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem('campusos_preferred_role', selectedRole);
-        }
-
-        if (data.session && data.user) {
-          await supabase.from('users').upsert({
-            id: data.user.id,
-            name: name.trim() || email.split('@')[0],
-            email,
-            department,
-            role: selectedRole,
-          });
-          onAuthenticated(selectedRole);
-          return;
-        }
-
-        setStatusMessage(
-          `Registered as ${ROLE_LABELS[selectedRole]}! Please confirm your email, then switch to Sign In to continue.`
-        );
-      } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) {
-          setStatusMessage(error.message);
-          return;
-        }
-
-        const meta = data.user?.user_metadata as
-          | { name?: string; department?: string; role?: UserRole }
-          | undefined;
-
-        const rememberedRole = meta?.role ?? 'student';
-        if (data.user) {
-          if (typeof window !== 'undefined') {
-            window.localStorage.setItem(
-              'campusos_preferred_role',
-              rememberedRole
-            );
-          }
-
-          await supabase.from('users').upsert(
-            {
-              id: data.user.id,
-              name: meta?.name ?? email.split('@')[0],
-              email: data.user.email ?? email,
-              department: meta?.department ?? 'General',
-              role: rememberedRole,
-            },
-            { onConflict: 'id', ignoreDuplicates: true }
-          );
-        }
-
-        onAuthenticated(rememberedRole);
+      if (!supabase) {
+        setStatusMessage('College sign-in is unavailable.');
+        return;
       }
+
+      const result = mode === 'signup'
+        ? await supabase.auth.signUp({ email, password, options: { data: { name: name.trim(), department } } })
+        : await supabase.auth.signInWithPassword({ email, password });
+      if (result.error) {
+        setStatusMessage(result.error.message);
+        return;
+      }
+      const { user, session } = result.data;
+      if (!user || !session) {
+        setStatusMessage('Please confirm your college email, then sign in.');
+        return;
+      }
+      // Ignore existing rows so signing in preserves roles assigned by the college.
+      const created = await supabase.from('users').upsert({
+        id: user.id, email: user.email ?? email,
+        name: user.user_metadata.name || email.split('@')[0],
+        department: user.user_metadata.department || 'General',
+      }, { onConflict: 'id', ignoreDuplicates: true });
+      if (created.error) { setStatusMessage('Could not initialize your college profile.'); return; }
+      const profile = await supabase.from('users').select('role').eq('id', user.id).single();
+      if (profile.error || !profile.data) { setStatusMessage('Could not load your college role.'); return; }
+      onAuthenticated(profile.data.role);
     } catch {
       setStatusMessage('Could not connect. Please try again.');
     } finally {
@@ -214,7 +162,7 @@ export default function AuthModal({
             <form onSubmit={handleSubmit} className="crew-auth-form">
               {mode === 'signup' && (
                 <>
-                  <fieldset>
+                  {mockMode && <fieldset>
                     <legend>Your role</legend>
                     <div className="crew-auth-roles">
                       {ROLE_OPTIONS.map((option) => (
@@ -224,7 +172,7 @@ export default function AuthModal({
                         </label>
                       ))}
                     </div>
-                  </fieldset>
+                  </fieldset>}
                   {mockMode && selectedRole === 'club_organizer' && <label>Your new club name<input required value={clubName} onChange={e => setClubName(e.target.value)} /></label>}
                   <div className="crew-auth-fields">
                     <label>Full name
@@ -260,7 +208,7 @@ export default function AuthModal({
               {statusMessage && <p className="crew-auth-status" role="status">{statusMessage}</p>}
 
               <button type="submit" disabled={loading} className="crew-auth-primary">
-                {loading ? 'Please wait…' : mode === 'signup' ? `Continue as ${ROLE_LABELS[selectedRole]}` : 'Sign in'}
+                {loading ? 'Please wait…' : mode === 'signup' ? (mockMode ? `Continue as ${ROLE_LABELS[selectedRole]}` : 'Create student account') : 'Sign in'}
                 <ArrowRight size={18} />
               </button>
             </form>

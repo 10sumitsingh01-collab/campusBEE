@@ -1,5 +1,4 @@
 import { connection, NextResponse } from 'next/server';
-import { SEED_CLUBS, SEED_EVENTS, SEED_VENUES } from '@/lib/data/seed';
 import { getDataMode, getStore } from '@/lib/server/store';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
@@ -20,10 +19,7 @@ export async function GET() {
           .order('start_time'),
       ]);
 
-      if (
-        (eventsRes.data && eventsRes.data.length > 0) ||
-        (clubsRes.data && clubsRes.data.length > 0)
-      ) {
+      if (!eventsRes.error && !clubsRes.error && !venuesRes.error) {
         return NextResponse.json({
           clubs: (clubsRes.data ?? []).map((c) => ({
             id: c.id,
@@ -69,12 +65,7 @@ export async function GET() {
       }
     }
 
-    // When RLS blocks anonymous reads before login, serve public catalog preview
-    return NextResponse.json({
-      clubs: SEED_CLUBS,
-      venues: SEED_VENUES,
-      events: SEED_EVENTS.filter((e) => e.status === 'published'),
-    });
+    return NextResponse.json({ error: 'Campus catalog unavailable.' }, { status: 503 });
   }
 
   const store = getStore();

@@ -1,0 +1,6 @@
+.env*
+.campus-data/
+.next*/
+node_modules*/
+.git/
+*.tsbuildinfo

@@ -31,32 +31,7 @@ export async function getRequestUser(
       .eq('id', authUser.id)
       .single();
 
-    const meta = authUser.user_metadata as
-      | { name?: string; department?: string; role?: UserRole }
-      | undefined;
-
-    if (!profile) {
-      const fallbackRole =
-        meta?.role && VALID_ROLES.includes(meta.role) ? meta.role : 'student';
-      return {
-        id: authUser.id,
-        name: meta?.name ?? authUser.email?.split('@')[0] ?? 'Campus User',
-        email: authUser.email ?? '',
-        department: meta?.department ?? 'General',
-        skills: [],
-        interests: [],
-        role: fallbackRole,
-      };
-    }
-
-    const dbRole = profile.role as UserRole;
-    const resolvedDbRole =
-      dbRole === 'student' &&
-      meta?.role &&
-      VALID_ROLES.includes(meta.role)
-        ? meta.role
-        : dbRole;
-
+    if (!profile || !VALID_ROLES.includes(profile.role)) return null;
     return {
       id: profile.id,
       name: profile.name,
@@ -66,7 +41,7 @@ export async function getRequestUser(
       year: profile.year ?? undefined,
       skills: profile.skills ?? [],
       interests: profile.interests ?? [],
-      role: resolvedDbRole,
+      role: profile.role,
     };
   }
 

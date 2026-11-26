@@ -1,4 +1,5 @@
 import { geminiApiKey } from '@/lib/server/geminiConfig';
+import { getDataMode } from '@/lib/server/store';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
@@ -11,7 +12,7 @@ export async function GET() {
   return NextResponse.json({
     status: 'ok',
     app: 'campusBEE + Crew Sync AI',
-    mode: supabaseConfigured ? 'supabase' : 'local_seed',
+    mode: getDataMode(),
     services: {
       supabase: supabaseConfigured,
       gemini: geminiConfigured,

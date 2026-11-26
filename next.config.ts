@@ -1,5 +1,13 @@
 import type { NextConfig } from "next";
 
+if (process.env.VERCEL_ENV === 'production') {
+  const configured = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'false'
+    && process.env.NEXT_PUBLIC_SUPABASE_URL
+    && (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+    && process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!configured) throw new Error('Configure production Supabase mode, URL, public key, and server-only service key before deploying CampusBEE.');
+}
+
 const nextConfig: NextConfig = {
   outputFileTracingExcludes: { "/*": [".campus-data/**"] },
   cacheComponents: true,
