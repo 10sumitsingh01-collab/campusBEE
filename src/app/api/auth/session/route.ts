@@ -1,3 +1,4 @@
+import {cookiePrefix} from '@/lib/auth/sessionScope';
 import { randomBytes, randomUUID, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { NextRequest, NextResponse } from 'next/server';
@@ -59,24 +60,26 @@ export async function POST(request: NextRequest) {
   } else if (!account || !timingSafeEqual(hash, Buffer.from(account.passwordHash, 'hex'))) {
     return failure('Email or password is incorrect.', 401);
   }
+  const prefix = cookiePrefix(request.headers);
   const token = randomBytes(32).toString('hex');
-  store.sessions = store.sessions.filter(s => s.expires > Date.now() && s.digest !== sessionDigest(request.cookies.get('campus_session')?.value ?? ''));
+  store.sessions = store.sessions.filter(s => s.expires > Date.now() && s.digest !== sessionDigest(request.cookies.get(prefix + 'campus_session')?.value ?? ''));
   store.sessions.push({ digest: sessionDigest(token), userId: account.profile.id, expires: Date.now() + lifetime * 1000 });
   saveDemoStore(store);
   const response = NextResponse.json({ user: account.profile }, { status: signup ? 201 : 200 });
-  response.cookies.set('campus_session', token, { httpOnly: true, sameSite: 'lax', path: '/', secure: request.nextUrl.protocol === 'https:', maxAge: lifetime });
-  if (hostedDemo.getStore()) response.cookies.set('campusbee_demo','1',{path:'/',sameSite:'lax',secure:request.nextUrl.protocol==='https:',maxAge:lifetime});
+  response.cookies.set(prefix + 'campus_session', token, { httpOnly: true, sameSite: 'lax', path: '/', secure: request.nextUrl.protocol === 'https:', maxAge: lifetime });
+  if (!prefix && hostedDemo.getStore()) response.cookies.set('campusbee_demo','1',{path:'/',sameSite:'lax',secure:request.nextUrl.protocol==='https:',maxAge:lifetime});
   return response;
 }
 
 export async function DELETE(request: NextRequest) {
   if (getDataMode() !== 'local_seed') return failure('Use campus single sign-in.', 404);
-  const digest = sessionDigest(request.cookies.get('campus_session')?.value ?? '');
+  const prefix = cookiePrefix(request.headers);
+  const digest = sessionDigest(request.cookies.get(prefix + 'campus_session')?.value ?? '');
   const store = getStore();
   store.sessions = store.sessions.filter(s => s.digest !== digest);
   saveDemoStore(store);
   const response = NextResponse.json({ signedOut: true });
-  response.cookies.delete('campus_session');
-  if (hostedDemo.getStore()) response.cookies.delete('campusbee_demo');
+  response.cookies.delete(prefix + 'campus_session');
+  if (!prefix && hostedDemo.getStore()) response.cookies.delete('campusbee_demo');
   return response;
 }

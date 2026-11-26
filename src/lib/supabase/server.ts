@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { cookiePrefix } from '@/lib/auth/sessionScope';
+import { cookies, headers } from 'next/headers';
 
 export async function createServerSupabaseClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -13,7 +14,9 @@ export async function createServerSupabaseClient() {
 
   const cookieStore = await cookies();
 
+  const prefix = cookiePrefix(await headers());
   return createServerClient(url, key, {
+    ...(prefix && {cookieOptions:{name:prefix + 'college'}}),
     cookies: {
       getAll() {
         return cookieStore.getAll();

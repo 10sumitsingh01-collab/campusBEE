@@ -1,5 +1,6 @@
 'use client';
 
+import { campusFetch } from '@/lib/auth/tabClient';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import { BarcodeFormat, DecodeHintType } from '@zxing/library';
@@ -117,7 +118,7 @@ export default function OperationsView({
 
   const loadAttendance = useCallback(async () => {
     if (!effectiveEventId || !isOrganizerOrAdmin) return;
-    const res = await fetch(`/api/events/${effectiveEventId}/checkin`, {
+    const res = await campusFetch(`/api/events/${effectiveEventId}/checkin`, {
       headers: { 'x-demo-role': role },
     });
     if (!res.ok) return;
@@ -130,7 +131,7 @@ export default function OperationsView({
   useEffect(() => {
     if (!effectiveEventId || !isOrganizerOrAdmin) return;
     let active = true;
-    fetch(`/api/events/${effectiveEventId}/checkin`, {
+    campusFetch(`/api/events/${effectiveEventId}/checkin`, {
       headers: { 'x-demo-role': role },
     })
       .then((r) => (r.ok ? r.json() : null))
@@ -148,7 +149,7 @@ export default function OperationsView({
   useEffect(() => {
     if (!isOrganizerOrAdmin) return;
     let active = true;
-    fetch(
+    campusFetch(
       `/api/events/${effectiveEventId || 'evt-ai-hackathon'}/college-id-checkin`,
       {
         headers: { 'x-demo-role': role },
@@ -212,7 +213,7 @@ export default function OperationsView({
       if (!ticketCode) { setPendingCard(''); setLinkCode(''); }
       try {
         if (activeMode === 'college_id') {
-          const res = await fetch(
+          const res = await campusFetch(
             `/api/events/${effectiveEventId}/college-id-checkin`,
             {
               method: 'POST',
@@ -282,7 +283,7 @@ export default function OperationsView({
         }
 
         // Existing QR Event Pass Scanner flow
-        const res = await fetch(`/api/events/${effectiveEventId}/checkin`, {
+        const res = await campusFetch(`/api/events/${effectiveEventId}/checkin`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -415,7 +416,7 @@ export default function OperationsView({
 
   const handleAddVenue = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/venues', {
+    const res = await campusFetch('/api/venues', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

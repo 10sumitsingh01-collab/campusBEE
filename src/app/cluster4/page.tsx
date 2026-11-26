@@ -1,5 +1,6 @@
 'use client';
 
+import { campusFetch } from '@/lib/auth/tabClient';
 import Link from 'next/link';
 import {useEffect,useState} from 'react';
 import './workflow.css';
@@ -16,7 +17,7 @@ export default function Workflow() {
     const controller=new AbortController();
     async function refresh(){
       try {
-        const r=await fetch('/api/evaluation/workflow',{cache:'no-store',signal:controller.signal});
+        const r=await campusFetch('/api/evaluation/workflow',{cache:'no-store',signal:controller.signal});
         if(r.status===401 || r.status===403){
           setData(undefined);
           setError('Access restricted. Sign in as the CLUSTER4 organizer or accept your assigned judge invitation.');

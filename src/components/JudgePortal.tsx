@@ -1,4 +1,5 @@
 'use client';
+import { campusFetch, setHostedDemo } from '@/lib/auth/tabClient';
 import {useEffect,useState} from 'react';
 import type {DeskItem} from '@/lib/judging/model';
 import ProjectMaterials from '@/components/ProjectMaterials';
@@ -6,7 +7,7 @@ import {total} from '@/lib/judging/model';
 import '@/components/judging.css';
 
 async function request(path:string,body?:object){
-  const res=await fetch('/api/evaluation/'+path,{cache:'no-store',...(body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{})});
+  const res=await campusFetch('/api/evaluation/'+path,{cache:'no-store',...(body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{})});
   const data=await res.json();if(!res.ok)throw Error(data.error||'Request failed.');return data;
 }
 export default function JudgePortal({embedded=false}:{embedded?:boolean}){
@@ -15,8 +16,8 @@ export default function JudgePortal({embedded=false}:{embedded?:boolean}){
   async function refresh(){try{const d=await request('desk');setItems(d.items);setAuthed(true);setMsg('');}catch(e){setItems([]);setAuthed(false);setMsg(e instanceof Error?e.message:'Sign in again.');}}
   useEffect(()=>{const invitation=location.hash.slice(1);
     if (invitation && new URLSearchParams(location.search).get('workspace') === 'demo')
-      document.cookie='campusbee_demo=1; Path=/; SameSite=Lax; Max-Age=28800';
-    else if (invitation) document.cookie='campusbee_demo=; Path=/; Max-Age=0; SameSite=Lax';
+      setHostedDemo(true);
+    else if (invitation) setHostedDemo(false);
     const init=window.setTimeout(()=>{if(invitation){setInvite(invitation);history.replaceState(null,'',location.pathname);}void refresh();},0);
     const timer=window.setInterval(()=>{if(!document.hidden)void refresh();},60000);
     window.addEventListener('focus',refresh);return()=>{clearInterval(timer);clearTimeout(init);window.removeEventListener('focus',refresh);};
@@ -36,7 +37,7 @@ export default function JudgePortal({embedded=false}:{embedded?:boolean}){
       <label>Round invitation link<input type="password" autoComplete="off" placeholder="Paste the private link from your organiser" required value={invite} onChange={ev=>setInvite(ev.target.value)}/></label>
       <button disabled={busy || !invite.trim()}>Accept judge invitation</button></form>}
     {authed && eventId==='cluster4-build24' && tasks.some(t=>t.round.id==='cluster4-final') && <a href="/cluster4">Live event workflow →</a>}
-    {authed && <><div className="judging-row"><button onClick={()=>void refresh()}>Refresh assignments</button><button onClick={async()=>{const r=await fetch('/api/evaluation/session',{method:'DELETE'});if(r.ok){setItems([]);setAuthed(false);setMsg('Signed out. Request a new invitation for your next session.');}}}>Sign out of round evaluations</button></div>
+    {authed && <><div className="judging-row"><button onClick={()=>void refresh()}>Refresh assignments</button><button onClick={async()=>{const r=await campusFetch('/api/evaluation/session',{method:'DELETE'});if(r.ok){setItems([]);setAuthed(false);setMsg('Signed out. Request a new invitation for your next session.');}}}>Sign out of round evaluations</button></div>
       {!items.length?<p>No teams assigned yet. Refresh after your organiser assigns a team.</p>:<>
       <div className="judging-grid"><label>Event<select value={eventId} onChange={e=>setEvent(e.target.value)}>{[...events].map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
       <label>Round<select value={roundId} onChange={e=>setRound(e.target.value)}>{[...rounds].map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label></div>

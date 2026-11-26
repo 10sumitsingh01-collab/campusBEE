@@ -1,5 +1,6 @@
 'use client';
 
+import { campusFetch, setHostedDemo } from '@/lib/auth/tabClient';
 import BeeLogo from './BeeLogo';
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -73,13 +74,13 @@ export default function AuthModal({
 
     try {
       if (mockMode) {
-        const response = await fetch(localDemo ? '/api/auth/session' : '/hosted-demo/auth/session', { method: 'POST',
+        const response = await campusFetch(localDemo ? '/api/auth/session' : '/hosted-demo/auth/session', { method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ mode, email, password, name, department, role: selectedRole, clubName: !localDemo && !clubName.trim() ? 'CLUSTER4' : clubName }),
         });
         const data = await response.json();
         if (response.ok) {
-          if (!localDemo) localStorage.setItem('campusbee_workspace', 'demo');
+          if (!localDemo) { setHostedDemo(true); localStorage.setItem('campusbee_workspace', 'demo'); }
           if (selectedEvent && data.user.role === 'student') {
             sessionStorage.setItem('campusbee_demo_event', JSON.stringify([selectedEvent.title,Date.parse(selectedEvent.startTime)]));
           }
@@ -88,7 +89,7 @@ export default function AuthModal({
         else setStatusMessage(data.error);
         return;
       }
-      const supabase = createClient();
+      const supabase = await createClient();
       if (!supabase) {
         setStatusMessage('College sign-in is unavailable.');
         return;
@@ -116,7 +117,7 @@ export default function AuthModal({
       const profile = await supabase.from('users').select('role').eq('id', user.id).single();
       if (profile.error || !profile.data) { setStatusMessage('Could not load your college role.'); return; }
       localStorage.setItem('campusbee_workspace', 'college');
-      document.cookie = 'campusbee_demo=; Max-Age=0; Path=/; SameSite=Lax';
+      setHostedDemo(false);
       onAuthenticated(profile.data.role);
     } catch {
       setStatusMessage('Could not connect. Please try again.');

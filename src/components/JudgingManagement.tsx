@@ -1,4 +1,5 @@
 'use client';
+import { campusFetch, usesHostedDemo } from '@/lib/auth/tabClient';
 import {useEffect,useState} from 'react';
 import type {FormEvent} from 'react';
 import type {CampusEvent,RubricCriterion} from '@/types/domain';
@@ -21,19 +22,19 @@ export default function JudgingManagement({events,initialEventId}:{events:Campus
 function Management({eventId}:{eventId:string}){
   const [panel,setPanel]=useState<Panel|null>(null),[refresh,setRefresh]=useState(0),[selected,setSelected]=useState(''),[notice,setNotice]=useState(''),[invite,setInvite]=useState(''),[busy,setBusy]=useState(false);
   const [criteria,setCriteria]=useState<CriterionInput[]>(initialCriteria);
-  useEffect(()=>{let active=true;fetch('/api/events/'+eventId+'/rubric').then(r=>r.json()).then(d=>{
+  useEffect(()=>{let active=true;campusFetch('/api/events/'+eventId+'/rubric').then(r=>r.json()).then(d=>{
     if(active && d.criteria?.length)setCriteria(d.criteria.map((c:RubricCriterion)=>({name:c.name,maxScore:c.maxScore})));
   }).catch(()=>{});return()=>{active=false;};},[eventId]);
-  useEffect(()=>{let active=true;fetch('/api/evaluation/manage?eventId='+encodeURIComponent(eventId),{cache:'no-store'}).then(async r=>{
+  useEffect(()=>{let active=true;campusFetch('/api/evaluation/manage?eventId='+encodeURIComponent(eventId),{cache:'no-store'}).then(async r=>{
     const d=await r.json();if(!r.ok)throw Error(d.error);if(active)setPanel(d);
   }).catch(e=>{if(active)setNotice(e.message);});return()=>{active=false;};},[eventId,refresh]);
   const r=panel?.rounds.find(r=>r.id===selected)??panel?.rounds.at(-1);
   async function change(action:string,data:Record<string,unknown>={}){
     if(busy||!panel)return;setBusy(true);setNotice('');
     try{
-      const res=await fetch('/api/evaluation/manage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({eventId,revision:panel.revision,roundId:r?.id,...data,action})});
+      const res=await campusFetch('/api/evaluation/manage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({eventId,revision:panel.revision,roundId:r?.id,...data,action})});
       const result=await res.json();if(!res.ok)throw Error(result.error);
-      if(result.invite)setInvite(location.origin+'/judge'+(document.cookie.split('; ').includes('campusbee_demo=1') ? '?workspace=demo' : '')+'#'+result.invite);
+      if(result.invite)setInvite(location.origin+'/judge'+(usesHostedDemo() ? '?workspace=demo' : '')+'#'+result.invite);
       if(action==='revoke')setInvite('');
       if(action==='round')setSelected('');
       setNotice(action==='publish'?'Results published.':'Changes saved.');

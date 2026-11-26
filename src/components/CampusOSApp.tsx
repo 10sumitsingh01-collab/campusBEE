@@ -1,5 +1,6 @@
 'use client';
 
+import { campusFetch, setHostedDemo } from '@/lib/auth/tabClient';
 import BeeLogo from './BeeLogo';
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -142,10 +143,10 @@ export default function CampusOSApp() {
 
   useEffect(() => {
     let active = true;
-    fetch('/api/bootstrap', { cache: 'no-store' })
+    campusFetch('/api/bootstrap', { cache: 'no-store' })
       .then(async (res) => {
         if (res.status === 401) {
-          const pubRes = await fetch('/api/public/discover');
+          const pubRes = await campusFetch('/api/public/discover');
           const pubData = pubRes.ok ? await pubRes.json() : null;
           if (active) {
             setConnectionError(false);
@@ -270,7 +271,7 @@ export default function CampusOSApp() {
   }, [events, filterClub, filterStatus, filterType, role, searchQuery]);
 
   const handleAddEvent = async (newEvent: CampusEvent) => {
-    const res = await fetch('/api/events', {
+    const res = await campusFetch('/api/events', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -292,7 +293,7 @@ export default function CampusOSApp() {
   const [approvalMessage,setApprovalMessage] = useState('');
   async function changeEventStatus(event: CampusEvent, status: CampusEvent['status']) {
     try {
-      const res = await fetch('/api/events/'+event.id+'?from='+event.status, {
+      const res = await campusFetch('/api/events/'+event.id+'?from='+event.status, {
         method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status}),
       });
       const data = await res.json();
@@ -307,7 +308,7 @@ export default function CampusOSApp() {
   const [planMessage, setPlanMessage] = useState('');
   const handleResolveClash = async (eventId: string, newVenueId: string, slot?: {startTime: string; endTime: string}) => {
     try {
-      const res = await fetch(`/api/events/${eventId}?resolveClash=1`, {
+      const res = await campusFetch(`/api/events/${eventId}?resolveClash=1`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ venueId: newVenueId, startTime:slot?.startTime, endTime:slot?.endTime }),
       });
@@ -326,7 +327,7 @@ export default function CampusOSApp() {
     id: string,
     status: 'accepted' | 'dismissed'
   ) => {
-    const res = await fetch(`/api/crew-sync/recommendations/${id}`, {
+    const res = await campusFetch(`/api/crew-sync/recommendations/${id}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -346,15 +347,16 @@ export default function CampusOSApp() {
 
   const handleLogout = async () => {
     if (dataMode === 'local_seed') {
-      const response = await fetch('/api/auth/session', { method: 'DELETE' });
+      const response = await campusFetch('/api/auth/session', { method: 'DELETE' });
       if (!response.ok) return;
+      setHostedDemo(false);
       router.replace('/login');
       return;
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
     if (supabase) {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
     }
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem('campusos_preferred_role');
@@ -383,7 +385,7 @@ export default function CampusOSApp() {
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileSaveMsg(null);
-    const res = await fetch('/api/auth/me', {
+    const res = await campusFetch('/api/auth/me', {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',

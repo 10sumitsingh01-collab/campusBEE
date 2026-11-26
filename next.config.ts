@@ -12,6 +12,11 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return { beforeFiles: [{
       source: '/api/:path((?!public/|health$).*)',
+      has: [{ type: 'header', key: 'x-campusbee-demo', value: '1' }],
+      destination: '/hosted-demo/:path',
+    }, {
+      source: '/api/:path((?!public/|health$).*)',
+      missing: [{ type: 'header', key: 'x-campusbee-tab' }],
       has: [{ type: 'cookie', key: 'campusbee_demo', value: '1' }],
       destination: '/hosted-demo/:path',
     }], afterFiles: [], fallback: [] };

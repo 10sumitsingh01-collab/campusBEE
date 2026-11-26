@@ -1,3 +1,4 @@
+import {cookiePrefix} from '@/lib/auth/sessionScope';
 import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
@@ -49,7 +50,7 @@ export async function getRequestUser(
 }
 
 export function demoSessionUser(request: NextRequest): UserProfile | null {
-  const token = request.cookies.get('campus_session')?.value;
+  const token = request.cookies.get(cookiePrefix(request.headers) + 'campus_session')?.value;
   if (!token) return null;
   const store = getStore();
   const digest = sessionDigest(token);

@@ -1,5 +1,6 @@
 'use client';
 
+import { campusFetch } from '@/lib/auth/tabClient';
 import React, { useState } from 'react';
 import {
   CheckCircle2,
@@ -74,7 +75,7 @@ export default function TeamsRegistrationView({
     const event = getEvent(selectedEventId);
     if (!event) return;
 
-    const res = await fetch(`/api/events/${event.id}/register`, {
+    const res = await campusFetch(`/api/events/${event.id}/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -107,7 +108,7 @@ export default function TeamsRegistrationView({
   };
 
   const handleAcceptInvite = async (inviteId: string) => {
-    const res = await fetch(`/api/invites/${inviteId}/respond`, {
+    const res = await campusFetch(`/api/invites/${inviteId}/respond`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -129,7 +130,7 @@ export default function TeamsRegistrationView({
   };
 
   const handleDeclineInvite = async (inviteId: string) => {
-    const res = await fetch(`/api/invites/${inviteId}/respond`, {
+    const res = await campusFetch(`/api/invites/${inviteId}/respond`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -148,7 +149,7 @@ export default function TeamsRegistrationView({
 
   const handleSendInvite = async (team: Team) => {
     if (!inviteEmail.trim()) return;
-    const res = await fetch(`/api/teams/${team.id}/invites`, {
+    const res = await campusFetch(`/api/teams/${team.id}/invites`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -168,7 +169,7 @@ export default function TeamsRegistrationView({
   };
 
   const handleLockTeam = async (team: Team) => {
-    const res = await fetch(`/api/teams/${team.id}/lock`, {
+    const res = await campusFetch(`/api/teams/${team.id}/lock`, {
       method: 'POST',
       headers: { 'x-demo-role': 'student' },
     });

@@ -1,5 +1,6 @@
 'use client';
 
+import { campusFetch } from '@/lib/auth/tabClient';
 import WorkspaceDialog from './WorkspaceDialog';
 
 import EventPoster from './EventPoster';
@@ -106,7 +107,7 @@ export default function EventCreateModal({
     setError('');
     setBlurb(null);
     try {
-      const res = await fetch('/api/crew-sync/event-blurb', {
+      const res = await campusFetch('/api/crew-sync/event-blurb', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: facts,
       });
       const data = await res.json();

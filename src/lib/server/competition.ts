@@ -1,3 +1,4 @@
+import {cookiePrefix} from '@/lib/auth/sessionScope';
 import 'server-only';
 import {randomBytes,randomUUID} from 'node:crypto';
 import {createClient} from '@supabase/supabase-js';
@@ -85,14 +86,18 @@ export async function teams(eventId:string,only?:string[]):Promise<EntryTeam[]>{
   return (t.data??[]).map(team=>{const sub=s.data.find(row=>row.team_id===team.id);
     return {id:team.id,name:team.name,members:team.team_members.filter(m=>m.status==='accepted').map(m=>[m.users].flat()[0]?.name??'Team member'),project:sub?project({...sub,problemStatement:sub.problem_statement,fileUrls:sub.file_urls}):null};});
 }
-export const cookieName=(eventId:string)=>'judge_access_'+eventId;
+export const judgePrefix = (req: NextRequest) => cookiePrefix(req.headers) + 'judge_access_';
+export function judgeCookies(req: NextRequest) {
+  const prefix = judgePrefix(req);
+  return req.cookies.getAll().filter(c => c.name.startsWith(prefix)).map(c => ({...c,eventId:c.name.slice(prefix.length)}));
+}
 export function principal(req:NextRequest,w:Workspace):PanelJudge{
   if (hostedDemo.getStore()) {
     const account = demoSessionUser(req);
     const assigned = account?.role === 'judge' && w.state.judges.find(j => j.id === account.id && !j.revoked);
     if (assigned) return assigned;
   }
-  const raw=req.cookies.get(cookieName(w.eventId))?.value;
+  const raw=req.cookies.get(judgePrefix(req) + w.eventId)?.value;
   const judge=raw && w.state.judges.find(j=>!j.revoked && j.sessionExpires>Date.now() && j.sessionHash===sessionDigest(raw));
   if(!judge)fail(401,'Judge access expired or was revoked. Ask your organiser for a new invitation.');
   return judge;

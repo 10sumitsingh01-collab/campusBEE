@@ -1,5 +1,6 @@
 'use client';
 
+import { campusFetch } from '@/lib/auth/tabClient';
 import ClubActivityGraph from './ClubActivityGraph';
 import React, { useEffect, useState } from 'react';
 import {
@@ -81,7 +82,7 @@ export default function CrewSyncView({
   const [geminiConfigured, setGeminiConfigured] = useState<boolean | null>(null);
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/api/health', { signal: controller.signal, cache: 'no-store' })
+    campusFetch('/api/health', { signal: controller.signal, cache: 'no-store' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setGeminiConfigured(data.services.gemini); })
       .catch(() => {});
@@ -119,7 +120,7 @@ export default function CrewSyncView({
   useEffect(() => {
     if (tool !== 'Reports' || !reportId) return;
     const controller = new AbortController();
-    fetch('/api/crew-sync/reports?eventId='+encodeURIComponent(reportId),{signal:controller.signal,cache:'no-store'})
+    campusFetch('/api/crew-sync/reports?eventId='+encodeURIComponent(reportId),{signal:controller.signal,cache:'no-store'})
       .then(async res => {
         if (!res.ok) throw new Error('Could not load the saved draft.');
         const data = await res.json();
@@ -150,7 +151,7 @@ export default function CrewSyncView({
   const handleRunCoordination = async () => {
     setCoordLoading(true); setScanNote('');
     try {
-      const res = await fetch('/api/crew-sync/coordination', {
+      const res = await campusFetch('/api/crew-sync/coordination', {
         method: 'POST',
         headers: { 'x-demo-role': role },
       });
@@ -173,7 +174,7 @@ export default function CrewSyncView({
   const handleRunCollaboration = async () => {
     setCollabLoading(true);
     try {
-      const res = await fetch('/api/crew-sync/collaborations', {
+      const res = await campusFetch('/api/crew-sync/collaborations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -199,7 +200,7 @@ export default function CrewSyncView({
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
-    const res = await fetch('/api/crew-sync/volunteers', {
+    const res = await campusFetch('/api/crew-sync/volunteers', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -217,7 +218,7 @@ export default function CrewSyncView({
   };
 
   const handleAssessClubHealth = async () => {
-    const res = await fetch('/api/crew-sync/club-health', {
+    const res = await campusFetch('/api/crew-sync/club-health', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -237,7 +238,7 @@ export default function CrewSyncView({
     setReportBusy(true);
     setReportError('');
     try {
-      const res = await fetch('/api/crew-sync/reports', {
+      const res = await campusFetch('/api/crew-sync/reports', {
         method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({eventId:selectedEvent.id,organizerNotes}),
       });
       const data = await res.json();

@@ -1,5 +1,6 @@
 'use client';
 
+import { campusFetch } from '@/lib/auth/tabClient';
 import React, { useEffect, useState } from 'react';
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
@@ -25,7 +26,7 @@ export default function MyTicketsView({ role, onBrowseEvents }: MyTicketsViewPro
 
   useEffect(() => {
     let active = true;
-    fetch('/api/tickets', {
+    campusFetch('/api/tickets', {
       headers: { 'x-demo-role': role },
     })
       .then(async (r) => {

@@ -1,5 +1,6 @@
 'use client';
 
+import { campusFetch } from '@/lib/auth/tabClient';
 import ProjectMaterials from './ProjectMaterials';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Award, CheckCircle2, Gavel, Send, Trophy } from 'lucide-react';
@@ -47,7 +48,7 @@ export default function CompetitionsView({
   const [artifact,setArtifact]=useState('');
   const [published,setPublished]=useState<{name:string;rows:{rank:number;team:string;score:number;maximum:number}[]}[]>([]);
   useEffect(()=>{let active=true;
-    if(selectedEventId)fetch('/api/evaluation/results?eventId='+encodeURIComponent(selectedEventId)).then(r=>r.json()).then(d=>{if(active)setPublished(d.rounds??[]);}).catch(()=>{if(active)setPublished([]);});
+    if(selectedEventId)campusFetch('/api/evaluation/results?eventId='+encodeURIComponent(selectedEventId)).then(r=>r.json()).then(d=>{if(active)setPublished(d.rounds??[]);}).catch(()=>{if(active)setPublished([]);});
     return()=>{active=false;};
   },[selectedEventId]);
   const [repoUrl, setRepoUrl] = useState('');
@@ -78,18 +79,18 @@ export default function CompetitionsView({
     let active = true;
 
     if (role === 'club_organizer' || role === 'college_admin') {
-      fetch(`/api/events/${selectedEventId}/assign-judges`).then(r => r.ok ? r.json() : { judges: [] }).then(data => {
+      campusFetch(`/api/events/${selectedEventId}/assign-judges`).then(r => r.ok ? r.json() : { judges: [] }).then(data => {
         if (active) setJudges(data.judges ?? []);
       }).catch(() => { if (active) setJudges([]); });
     }
     Promise.all([
-      fetch(`/api/events/${selectedEventId}/submissions`, {
+      campusFetch(`/api/events/${selectedEventId}/submissions`, {
         headers: { 'x-demo-role': role },
       }).then((r) => (r.ok ? r.json() : null)),
-      fetch(`/api/events/${selectedEventId}/rubric`, {
+      campusFetch(`/api/events/${selectedEventId}/rubric`, {
         headers: { 'x-demo-role': role },
       }).then((r) => (r.ok ? r.json() : null)),
-      fetch(`/api/events/${selectedEventId}/leaderboard`, {
+      campusFetch(`/api/events/${selectedEventId}/leaderboard`, {
         headers: { 'x-demo-role': role },
       }).then((r) => (r.ok ? r.json() : null)),
     ]).then(([subData, rubData, lbData]) => {
@@ -112,7 +113,7 @@ export default function CompetitionsView({
   const handleSubmitProject = async (e: React.FormEvent) => {
     e.preventDefault();
     setFeedback(null);
-    const res = await fetch(`/api/events/${selectedEventId}/submissions`, {
+    const res = await campusFetch(`/api/events/${selectedEventId}/submissions`, {
       method: 'POST',
       headers: headers(),
       body: JSON.stringify({
@@ -137,7 +138,7 @@ export default function CompetitionsView({
 
   const handleAssignSelfOrJudge = async (submissionId: string) => {
     setFeedback(null);
-    const res = await fetch(`/api/events/${selectedEventId}/assign-judges`, {
+    const res = await campusFetch(`/api/events/${selectedEventId}/assign-judges`, {
       method: 'POST',
       headers: headers(),
       body: JSON.stringify({
@@ -163,7 +164,7 @@ export default function CompetitionsView({
       return;
     }
 
-    const res = await fetch('/api/judging/scores', {
+    const res = await campusFetch('/api/judging/scores', {
       method: 'POST',
       headers: headers(),
       body: JSON.stringify({

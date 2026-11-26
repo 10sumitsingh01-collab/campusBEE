@@ -86,8 +86,11 @@ export async function inHostedDemo(req: NextRequest, handler: () => Promise<Resp
         // Create-only writes give concurrent requests a single winning revision.
         const write = await files.upload('state/' + file(revision + 1), seal(after, key), { upsert: false, contentType: 'application/octet-stream' });
         if (write.error) {
-          if (['409','400'].includes(String(write.error.statusCode)) && /exist|duplicate|conflict/i.test(write.error.message))
-            return failure('Another demo user just saved a change. Refresh and retry.', 409);
+          if (write.error.status === 409 || /already exists|duplicate/i.test(write.error.message)) {
+            const conflict = failure('Another demo user just saved a change. Refresh and retry.', 409);
+            conflict.headers.set('x-campusbee-revision-conflict','1');
+            return conflict;
+          }
           throw Error('upload');
         }
         if (revision > 1) await files.remove(['state/' + file(revision - 1)]);

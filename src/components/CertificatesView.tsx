@@ -1,5 +1,6 @@
 'use client';
 
+import { campusFetch } from '@/lib/auth/tabClient';
 import React, { useState } from 'react';
 import { Award, CheckCircle2, Search, ShieldCheck, XCircle } from 'lucide-react';
 import { CampusEvent, CertificateRecord, UserRole } from '@/types/domain';
@@ -31,7 +32,7 @@ export default function CertificatesView({
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch(
+    const res = await campusFetch(
       `/api/events/${selectedEventId}/certificates/generate`,
       {
         method: 'POST',
@@ -55,7 +56,7 @@ export default function CertificatesView({
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!verifyCode.trim()) return;
-    const res = await fetch(
+    const res = await campusFetch(
       `/api/certificates/verify/${encodeURIComponent(verifyCode.trim())}`
     );
     const data = await res.json();

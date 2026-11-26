@@ -1,3 +1,5 @@
+import { getTabId } from '@/lib/auth/tabClient';
+import { collegeCookie } from '@/lib/auth/sessionScope';
 import { createBrowserClient } from '@supabase/ssr';
 
 export function getSupabaseKey(): string | undefined {
@@ -15,7 +17,9 @@ export function isMockMode(): boolean {
   );
 }
 
-export function createClient() {
+let client: ReturnType<typeof createBrowserClient> | undefined;
+
+export async function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = getSupabaseKey();
 
@@ -23,5 +27,6 @@ export function createClient() {
     return null;
   }
 
-  return createBrowserClient(url, key);
+  const name = collegeCookie(await getTabId());
+  return client ??= createBrowserClient(url, key, { isSingleton: false, cookieOptions: {name} });
 }
