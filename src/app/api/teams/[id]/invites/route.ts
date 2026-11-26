@@ -5,7 +5,7 @@ import {
   requireRole,
   unauthorizedResponse,
 } from '@/lib/server/authGuard';
-import { generateId, getDataMode, getStore } from '@/lib/server/store';
+import { generateId, getDataMode, getStore, saveDemoStore } from '@/lib/server/store';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { TeamInvite } from '@/types/domain';
 
@@ -125,5 +125,6 @@ export async function POST(
   };
 
   store.invites.push(invite);
+  saveDemoStore(store);
   return NextResponse.json({ invite }, { status: 201 });
 }

@@ -1,3 +1,4 @@
+import { saveDemoStore } from '@/lib/server/store';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   canManageClub,
@@ -76,6 +77,9 @@ export async function POST(
     return forbiddenResponse('Only the club organizer or admin can assign judges.');
   }
 
+  if (!store.accounts.some(a => a.profile.role === 'judge' && a.profile.id === body.judgeId) || !store.submissions.some(s => s.id === body.submissionId && s.eventId === eventId)) {
+    return NextResponse.json({ error: 'Select a judge and a submission belonging to this event.' }, { status: 400 });
+  }
   const existing = store.judgeAssignments.find(
     (ja) =>
       ja.judgeId === body.judgeId && ja.submissionId === body.submissionId
@@ -93,5 +97,26 @@ export async function POST(
   };
 
   store.judgeAssignments.push(assignment);
+  saveDemoStore(store);
   return NextResponse.json({ assignment }, { status: 201 });
+}
+
+
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const user = await getRequestUser(request);
+  if (!user) return unauthorizedResponse();
+  if (user.role !== 'college_admin' && user.role !== 'club_organizer') return forbiddenResponse();
+  if (getDataMode() === 'supabase') {
+    const client = await createServerSupabaseClient();
+    if (!client) return unauthorizedResponse();
+    const { data, error } = await client.from('users').select('id,name,email').eq('role','judge');
+    return error ? NextResponse.json({ error: error.message }, { status: 403 }) : NextResponse.json({ judges: data });
+  }
+  const { id } = await context.params;
+  const store = getStore();
+  const event = store.events.find(e => e.id === id);
+  if (!event || !canManageClub(user, event.clubId)) return forbiddenResponse();
+  const judges = store.accounts.filter(a => a.profile.role === 'judge')
+    .map(({ profile: { id, name, email } }) => ({ id, name, email }));
+  return NextResponse.json({ judges });
 }

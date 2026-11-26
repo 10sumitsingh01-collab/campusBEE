@@ -1,0 +1,12 @@
+PlatePlan
+Team Loop | CLUSTER4 Build/24
+Prototype proposal for the campus showcase
+
+Problem
+Campus kitchens need earlier signals about meal demand.
+
+Proposed design
+Aggregate opt-in meal counts by dining hall and time slot to estimate the next service.
+
+Validation plan
+Compare predicted demand against served portions and report absolute error.

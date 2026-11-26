@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
         venueName: venueObj?.name ?? 'TBD Venue',
         venueBuilding: venueObj?.building ?? 'Campus',
         userId: r.user_id,
+        eventRole: r.registration_type === 'volunteer' ? 'volunteer' : 'contestant',
         teamId: r.team_id ?? undefined,
         attendeeName: r.attendee_name ?? user.name,
         attendeeEmail: r.attendee_email ?? user.email,
@@ -79,7 +80,17 @@ export async function GET(request: NextRequest) {
       const att = store.attendance.find(
         (a) => a.eventId === t.eventId && a.userId === user.id
       );
-      return { ...t, checkedInAt: att?.checkInTime };
+      const event = store.events.find(e => e.id === t.eventId);
+      const venue = store.venues.find(v => v.id === event?.venueId);
+      return {
+        ...t,
+        eventTitle: event?.title ?? t.eventTitle,
+        eventStartTime: event?.startTime ?? t.eventStartTime,
+        eventEndTime: event?.endTime ?? t.eventEndTime,
+        venueName: venue?.name ?? t.venueName,
+        venueBuilding: venue?.building ?? t.venueBuilding,
+        checkedInAt: att?.checkInTime,
+      };
     });
 
   return NextResponse.json({ tickets });

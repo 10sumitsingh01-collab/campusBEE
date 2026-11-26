@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRequestUser, unauthorizedResponse } from '@/lib/server/authGuard';
+import { canManageClub, getRequestUser, unauthorizedResponse } from '@/lib/server/authGuard';
 import { getDataMode, getStore } from '@/lib/server/store';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
@@ -16,6 +16,8 @@ export async function GET(
     const supabase = await createServerSupabaseClient();
     if (!supabase) return unauthorizedResponse();
 
+    const {data:allowed}=await supabase.rpc('is_event_organizer',{target_event_id:eventId});
+    if(!allowed)return NextResponse.json({leaderboard:[]});
     const [critRes, subRes, teamRes, assignRes, scoreRes] = await Promise.all([
       supabase.from('rubric_criteria').select('*').eq('event_id', eventId),
       supabase.from('submissions').select('*').eq('event_id', eventId),
@@ -78,6 +80,8 @@ export async function GET(
   }
 
   const store = getStore();
+  const event=store.events.find(e=>e.id===eventId);
+  if(!event||!canManageClub(user,event.clubId))return NextResponse.json({leaderboard:[]});
   const criteria = store.rubrics.filter((r) => r.eventId === eventId);
   const submissions = store.submissions.filter((s) => s.eventId === eventId);
 
@@ -92,9 +96,9 @@ export async function GET(
       (ja) => ja.submissionId === sub.id
     );
 
-    const judgeTotals = assignments.map((ja) => {
+    const judgeTotals = assignments.filter(ja => store.scores.some(sc => sc.judgeAssignmentId === ja.id && sc.locked)).map((ja) => {
       const jaScores = store.scores.filter(
-        (sc) => sc.judgeAssignmentId === ja.id
+        (sc) => sc.judgeAssignmentId === ja.id && sc.locked
       );
       return jaScores.reduce((sum, sc) => {
         const crit = criteria.find((c) => c.id === sc.criterionId);
@@ -123,7 +127,7 @@ export async function GET(
   });
 
   entries.sort((a, b) => b.averageWeightedScore - a.averageWeightedScore);
-  const ranked = entries.map((entry, idx) => ({
+  const ranked = entries.filter(row => row.judgeCount > 0).map((entry, idx) => ({
     rank: idx + 1,
     ...entry,
   }));

@@ -6,7 +6,7 @@ import {
   requireRole,
   unauthorizedResponse,
 } from '@/lib/server/authGuard';
-import { generateId, getDataMode, getStore } from '@/lib/server/store';
+import { generateId, getDataMode, getStore, saveDemoStore } from '@/lib/server/store';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { EventAttendance } from '@/types/domain';
 
@@ -307,6 +307,7 @@ export async function POST(
       checkInMethod: body.method ?? 'qr',
     };
     store.attendance.push(record);
+    saveDemoStore(store);
     return NextResponse.json(
       { status: 'VALID', attendance: record, attendee },
       { status: 201 }
@@ -336,6 +337,7 @@ export async function POST(
   };
 
   store.attendance.push(record);
+  saveDemoStore(store);
   return NextResponse.json(
     { status: 'VALID', attendance: record },
     { status: 201 }

@@ -1,3 +1,4 @@
+import {registrationSummary} from '@/lib/server/eventTicket';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   canManageClub,
@@ -7,7 +8,7 @@ import {
   unauthorizedResponse,
 } from '@/lib/server/authGuard';
 import { generateGroundedNarrative } from '@/lib/server/gemini';
-import { generateId, getDataMode, getStore } from '@/lib/server/store';
+import { generateId, getDataMode, getStore, saveDemoStore } from '@/lib/server/store';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { EventReport } from '@/types/domain';
 
@@ -16,17 +17,27 @@ export async function GET(request: NextRequest) {
   const roleError = requireRole(user, ['club_organizer', 'college_admin']);
   if (roleError || !user) return roleError ?? unauthorizedResponse();
 
+  const eventId = request.nextUrl.searchParams.get('eventId');
   if (getDataMode() === 'supabase') {
     const supabase = await createServerSupabaseClient();
     if (!supabase) return unauthorizedResponse();
-    const { data } = await supabase
+    let query = supabase
       .from('event_reports')
       .select('*')
       .order('created_at', { ascending: false });
-    return NextResponse.json({ reports: data ?? [] });
+    if (eventId) query = query.eq('event_id', eventId);
+    const { data, error } = await query;
+    if (error) return NextResponse.json({error:'Could not load saved reports.'},{status:503});
+    return NextResponse.json({reports:(data ?? []).map(row=>({
+      id:row.id, eventId:row.event_id, verifiedMetricsSnapshot:row.verified_metrics_snapshot,
+      generatedNarrative:row.generated_narrative, approvalStatus:row.approval_status,
+      organizerNotes:row.organizer_notes, createdAt:row.created_at,
+    }))});
   }
 
-  return NextResponse.json({ reports: getStore().reports });
+  const store = getStore();
+  const allowed = new Set(store.events.filter(event=>canManageClub(user,event.clubId)).map(event=>event.id));
+  return NextResponse.json({reports:store.reports.filter(report=>allowed.has(report.eventId) && (!eventId || report.eventId===eventId))});
 }
 
 export async function POST(request: NextRequest) {
@@ -53,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     const { data: event } = await supabase
       .from('events')
-      .select('*')
+      .select('*, venues(capacity)')
       .eq('id', body.eventId)
       .single();
 
@@ -72,17 +83,19 @@ export async function POST(request: NextRequest) {
         .select('id', { count: 'exact', head: true })
         .eq('event_id', event.id),
       supabase
-        .from('volunteer_assignments')
+        .from('registrations')
         .select('id', { count: 'exact', head: true })
-        .eq('event_id', event.id)
-        .eq('confirmed', true),
+        .eq('event_id', event.id).eq('registration_type','volunteer').eq('status','registered'),
       supabase
         .from('submissions')
         .select('id', { count: 'exact', head: true })
         .eq('event_id', event.id),
     ]);
 
+    if ([regRes,attRes,volRes,subRes].some(result=>result.error)) return NextResponse.json({error:'Unable to verify report totals.'},{status:503});
     const registrationsCount = regRes.count ?? 0;
+    const capacity = (Array.isArray(event.venues) ? event.venues[0] : event.venues)?.capacity ?? null;
+    const remaining = capacity===null ? null : Math.max(0,capacity-registrationsCount);
     const attendanceCount = attRes.count ?? 0;
     const attendanceRate =
       registrationsCount > 0
@@ -93,7 +106,7 @@ export async function POST(request: NextRequest) {
     const submissionCount = subRes.count ?? 0;
 
     const metrics = {
-      registrationsCount,
+      capacity, remaining, registrationsCount,
       attendanceCount,
       attendanceRate,
       noShowCount,
@@ -109,7 +122,7 @@ export async function POST(request: NextRequest) {
         fallbackNarrative
       );
 
-    const { data: upserted } = await supabase
+    const { data: upserted, error: saveError } = await supabase
       .from('event_reports')
       .upsert(
         {
@@ -124,6 +137,7 @@ export async function POST(request: NextRequest) {
       .select('*')
       .single();
 
+    if (saveError || !upserted) return NextResponse.json({error:'Unable to save the report for this event.'},{status:503});
     const report: EventReport = {
       id: upserted?.id ?? generateId('rep'),
       eventId: event.id,
@@ -149,7 +163,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const registrationsCount = event.registrationsCount;
+  const {capacity,registered:registrationsCount,remaining} = registrationSummary(store,event);
   const attendanceCount = store.attendance.filter(
     (a) => a.eventId === event.id
   ).length;
@@ -158,14 +172,14 @@ export async function POST(request: NextRequest) {
       ? Number(((attendanceCount / registrationsCount) * 100).toFixed(1))
       : 0;
   const noShowCount = Math.max(0, registrationsCount - attendanceCount);
-  const volunteerCount = store.volunteerAssignments.filter(
-    (v) => v.eventId === event.id && v.confirmed
-  ).length;
+  const volunteerCount = new Set([...store.volunteerAssignments.filter(v => v.eventId === event.id && v.confirmed).map(v => v.userId),
+    ...store.tickets.filter(t => t.eventId === event.id && t.eventRole === 'volunteer' && t.status === 'registered').map(t => t.userId)]).size;
   const submissionCount = store.submissions.filter(
     (s) => s.eventId === event.id
   ).length;
 
   const metrics = {
+    capacity,remaining,
     registrationsCount,
     attendanceCount,
     attendanceRate,
@@ -197,5 +211,6 @@ export async function POST(request: NextRequest) {
     report,
   ];
 
+  saveDemoStore(store);
   return NextResponse.json({ report, usedGemini }, { status: 201 });
 }

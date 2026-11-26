@@ -1,0 +1,68 @@
+.festival-intro {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  width: 100%;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  background: #11110f;
+  color: #fffaf4;
+  transition: opacity 760ms ease-out;
+}
+.festival-intro::backdrop { background: transparent; }
+.festival-intro[data-leaving] { opacity: 0; }
+.festival-film {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #11110f;
+}
+.festival-intro::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, #11110fdc, rgb(17 17 15 / 55%) 22%, transparent 62%);
+  pointer-events: none;
+}
+.festival-brand, .festival-skip, .festival-title { position: absolute; z-index: 1; }
+.festival-brand, .festival-skip { top: max(24px, env(safe-area-inset-top)); }
+.festival-brand { left: 5vw; font-size: 1.4rem; font-weight: 800; letter-spacing: -.055em; }
+.festival-brand span, .festival-title span { color: #ffdc92; }
+.festival-skip {
+  right: 5vw; display: inline-flex; align-items: center; gap: .65rem;
+  min-height: 44px; padding: 0 1rem; border: 1px solid #ffffff54;
+  border-radius: 999px; color: white; background: #26231e; cursor: pointer;
+}
+.festival-skip:focus-visible { outline: 2px solid #ffdc92; outline-offset: 3px; }
+.festival-title {
+  bottom: max(6vh, env(safe-area-inset-bottom)); left: 5vw; right: 5vw;
+  font-size: clamp(2.35rem, 6.4vw, 6.6rem); line-height: 1; margin: 0;
+  font-weight: 780; letter-spacing: -.045em; text-align: left; text-shadow: 0 2px 18px #14100c66;
+}
+.festival-title span { display: block; }
+@media (max-aspect-ratio: 1/1) {
+  .festival-film { object-position: center; }
+  .festival-title { bottom: max(9vh, env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .festival-intro[data-playing] .festival-film { animation: festival-depth 15s ease-out both; }
+  .festival-intro .festival-title { opacity: 0; }
+  .festival-intro[data-playing] .festival-title { animation: headline-arrival 900ms 850ms ease-out both; }
+  @keyframes festival-depth {
+    from { transform: perspective(1200px) scale(1.065) rotateY(-2deg) rotateX(1deg); }
+    to { transform: perspective(1200px) scale(1.015) rotateY(0deg) rotateX(0deg); }
+  }
+  @keyframes headline-arrival {
+    from { opacity: 0; transform: perspective(900px) translateY(12px) translateZ(-35px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .festival-intro { transition: none; }
+}

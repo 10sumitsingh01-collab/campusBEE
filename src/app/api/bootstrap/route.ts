@@ -1,3 +1,4 @@
+import {registrationSummary} from '@/lib/server/eventTicket';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   canManageClub,
@@ -13,6 +14,15 @@ import {
   ClubActivityMetric,
   Venue,
 } from '@/types/domain';
+
+function monthlySignups(dates: string[]) {
+  const totals:Record<string,number> = {};
+  for (const value of dates) {
+    const month = new Date(value).toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'}).slice(0,7);
+    totals[month] = (totals[month] ?? 0) + 1;
+  }
+  return totals;
+}
 
 export async function GET(request: NextRequest) {
   const mode = getDataMode();
@@ -43,10 +53,16 @@ export async function GET(request: NextRequest) {
               .order('created_at', { ascending: false })
           : Promise.resolve({ data: [] }),
         user.role === 'club_organizer' || user.role === 'college_admin'
-          ? supabase.from('club_activity_metrics').select('*')
+          ? supabase.from('club_activity_metrics').select('*').order('period_start')
           : Promise.resolve({ data: [] }),
       ]);
 
+    const judgeEvents=new Set<string>();
+    if(user.role==='judge'){
+      const assignments=await supabase.from('judge_assignments').select('event_id').eq('judge_id',user.id);
+      if(assignments.error)return NextResponse.json({error:'Could not load judge assignments.'},{status:503});
+      for(const assignment of assignments.data??[])judgeEvents.add(assignment.event_id);
+    }
     const clubs: Club[] = (clubsRes.data ?? []).map((c) => ({
       id: c.id,
       name: c.name,
@@ -70,6 +86,7 @@ export async function GET(request: NextRequest) {
 
     const events: CampusEvent[] = (eventsRes.data ?? []).map((e) => ({
       id: e.id,
+      assignedToJudge:judgeEvents.has(e.id),
       clubId: e.club_id,
       title: e.title,
       description: e.description ?? '',
@@ -152,6 +169,18 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    const entries = await supabase.from('registrations').select('event_id,user_id,attendee_name,registration_type,registered_at').eq('status','registered');
+    for (const event of events) {
+      const rows = (entries.data ?? []).filter(r => r.event_id===event.id);
+      const mine = rows.find(r=>r.user_id===user.id);
+      if (mine) event.myEventRole = mine.registration_type==='volunteer' ? 'volunteer' : 'contestant';
+      if (user.role==='college_admin' || clubs.some(c=>c.id===event.clubId && c.ownerId===user.id)) {
+        const capacity = venues.find(v=>v.id===event.venueId)?.capacity ?? null;
+        event.registrationSummary={capacity,registered:rows.length,remaining:capacity===null ? null : Math.max(0,capacity-rows.length)};
+        event.signupsByMonth=monthlySignups(rows.map(r=>r.registered_at));
+        event.volunteerRoster=rows.filter(r=>r.registration_type==='volunteer').map(r=>({userId:r.user_id,name:r.attendee_name}));
+      }
+    }
     return NextResponse.json({
       dataMode: mode,
       user,
@@ -167,7 +196,7 @@ export async function GET(request: NextRequest) {
 
   const store = getStore();
   const visibleEvents = store.events.filter(
-    (ev) => ev.status !== 'draft' || canManageClub(user, ev.clubId)
+    (ev) => !['draft','pending_approval'].includes(ev.status) || canManageClub(user, ev.clubId)
   );
 
   return NextResponse.json({
@@ -175,8 +204,15 @@ export async function GET(request: NextRequest) {
     user,
     clubs: store.clubs,
     venues: store.venues,
-    events: visibleEvents,
-    teams: store.teams,
+    events: visibleEvents.map(event => {
+      const entries = store.tickets.filter(t => t.eventId === event.id && t.status === 'registered');
+      const mine = entries.find(t => t.userId === user.id);
+      return {...event, assignedToJudge:user.role==='judge' && store.judgeAssignments.some(a=>a.eventId===event.id && a.judgeId===user.id), registrationSummary:registrationSummary(store,event), myEventRole:mine ? mine.eventRole ?? 'contestant' : undefined,
+        signupsByMonth:canManageClub(user,event.clubId) ? monthlySignups(entries.map(t=>t.registeredAt)) : undefined,
+        volunteerRoster:canManageClub(user,event.clubId) ? entries.filter(t => t.eventRole === 'volunteer').map(t => ({userId:t.userId,name:t.attendeeName})) : undefined};
+    }),
+    teams: store.teams.filter(team => user.role === 'college_admin' || team.members.some(m => m.userId === user.id) ||
+      (user.role === 'club_organizer' && visibleEvents.some(e => e.id === team.eventId && canManageClub(user, e.clubId)))),
     invites: store.invites.filter(
       (i) => i.invitedEmail.toLowerCase() === user.email.toLowerCase()
     ),

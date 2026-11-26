@@ -56,7 +56,15 @@ export interface Venue {
   equipment: string[];
 }
 
+export type EventRole = 'contestant' | 'volunteer';
+
 export interface CampusEvent {
+  maxTeams?: number;
+  assignedToJudge?:boolean;
+  myEventRole?: EventRole;
+  signupsByMonth?: Record<string,number>;
+  volunteerRoster?: {userId:string; name:string}[];
+  registrationSummary?: { capacity:number | null; registered:number; remaining:number | null };
   id: string;
   clubId: string;
   title: string;
@@ -118,6 +126,7 @@ export interface AIRecommendation {
     | 'Volunteer & Club Health Agent'
     | 'Event Intelligence Agent';
   suggestedActionLabel?: string;
+  scheduleChange?: { venueId: string } | { startTime: string; endTime: string };
   createdAt: string;
 }
 
@@ -156,6 +165,7 @@ export interface TeamInvite {
 }
 
 export interface Submission {
+  problemStatement?:string;
   id: string;
   eventId: string;
   teamId: string;
@@ -201,7 +211,7 @@ export interface EventAttendance {
   userId?: string;
   teamId?: string;
   checkInTime: string;
-  checkInMethod: 'qr' | 'manual';
+  checkInMethod: 'qr' | 'manual' | 'barcode';
 }
 
 export interface CertificateRecord {
@@ -243,6 +253,8 @@ export interface EventReport {
   id: string;
   eventId: string;
   verifiedMetricsSnapshot: {
+    capacity?: number | null;
+    remaining?: number | null;
     registrationsCount: number;
     attendanceCount: number;
     attendanceRate: number;
@@ -259,6 +271,7 @@ export interface EventReport {
 }
 
 export interface EventTicket {
+  eventRole?: EventRole;
   id: string;
   eventId: string;
   eventTitle: string;

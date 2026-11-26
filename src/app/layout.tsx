@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./auth-dialog.css";
+import "./discovery.css";
+import "./workspace.css";
+import "./festival-intro.css";
 
 export const metadata: Metadata = {
-  title: "CampusOS + Crew Sync AI",
+  title: "campusBEE + Crew Sync AI",
   description:
     "College-specific event ecosystem with an AI coordination layer for clubs, venues, volunteers, and insights.",
 };

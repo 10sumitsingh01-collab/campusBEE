@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
+  canManageClub,
+  forbiddenResponse,
   getRequestUser,
   requireRole,
   unauthorizedResponse,
 } from '@/lib/server/authGuard';
-import { getDataMode, getStore } from '@/lib/server/store';
+import { getDataMode, getStore, saveDemoStore } from '@/lib/server/store';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { checkCandidateEventClashes } from '@/lib/coordination/clashCheck';
 import { RecommendationStatus } from '@/types/domain';
 
 export async function PATCH(
@@ -21,6 +24,7 @@ export async function PATCH(
     status?: RecommendationStatus;
     summary?: string;
     applyVenueId?: string;
+    expectedPlan?: { venueId?: string; startTime?: string; endTime?: string };
   };
 
   if (
@@ -115,12 +119,34 @@ export async function PATCH(
     );
   }
 
+  const rec = store.recommendations[idx];
+  if (rec.clubId && !canManageClub(user, rec.clubId)) return forbiddenResponse();
+  if (rec.type === 'clash_resolution' && body.status === 'accepted' && rec.status !== 'accepted') {
+    const event = store.events.find(e => e.id === rec.eventId);
+    if (!event || !canManageClub(user, event.clubId)) return forbiddenResponse();
+    const conflict = checkCandidateEventClashes(event, store.events, store.venues).find(c =>
+      rec.sourceRecords.includes(c.eventA.id) && rec.sourceRecords.includes(c.venue.id));
+    const plan = rec.scheduleChange;
+    const expected = body.expectedPlan;
+    if (expected && plan && ('venueId' in plan ? expected.venueId !== plan.venueId :
+      expected.startTime !== plan.startTime || expected.endTime !== plan.endTime)) {
+      return NextResponse.json({ error: 'The proposed plan changed. Review the latest suggestion.' }, { status: 409 });
+    }
+    const valid = plan && conflict && ('venueId' in plan
+      ? conflict.alternateVenues.some(v => v.id === plan.venueId)
+      : conflict.alternateTimeSlots.some(s => s.startTime === plan.startTime && s.endTime === plan.endTime));
+    if (!valid) {
+      return NextResponse.json({ error: 'This plan is no longer available. Scan for a current alternative.' }, { status: 409 });
+    }
+    Object.assign(event, plan);
+  }
   store.recommendations[idx] = {
     ...store.recommendations[idx],
     status: body.status,
     summary: body.summary ?? store.recommendations[idx].summary,
   };
 
+  saveDemoStore(store);
   return NextResponse.json({
     recommendation: store.recommendations[idx],
     audit: {

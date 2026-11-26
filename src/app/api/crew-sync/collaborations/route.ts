@@ -5,7 +5,7 @@ import {
   unauthorizedResponse,
 } from '@/lib/server/authGuard';
 import { generateGroundedNarrative } from '@/lib/server/gemini';
-import { generateId, getDataMode, getStore } from '@/lib/server/store';
+import { generateId, getDataMode, getStore, saveDemoStore } from '@/lib/server/store';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { AIRecommendation, CampusEvent, Club } from '@/types/domain';
 
@@ -155,7 +155,9 @@ export async function POST(request: NextRequest) {
       }
     }
   } else {
-    getStore().recommendations.unshift(rec);
+    const store = getStore();
+    store.recommendations.unshift(rec);
+    saveDemoStore(store);
   }
 
   return NextResponse.json({

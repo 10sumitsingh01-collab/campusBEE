@@ -1,21 +1,18 @@
 'use client';
 
+import BeeLogo from './BeeLogo';
+
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  AlertCircle,
-  ArrowRight,
+  CalendarDays,
+  Terminal, ChevronDown, Menu,
   Award,
   Bot,
   Building2,
-  Calendar,
-  Check,
-  CheckCircle2,
-  ClipboardCheck,
   Compass,
   Home,
   Layers,
   LogOut,
-  MapPin,
   Plus,
   Search,
   ShieldCheck,
@@ -24,22 +21,27 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import WorkspaceDialog from './WorkspaceDialog';
 import AuthModal from '@/components/AuthModal';
 import CampusCalendar from '@/components/CampusCalendar';
 import CertificatesView from '@/components/CertificatesView';
+import JudgePortal from './JudgePortal';
+import JudgingManagement from './JudgingManagement';
 import CompetitionsView from '@/components/CompetitionsView';
+import StudentCrewSync from './StudentCrewSync';
 import CrewSyncView from '@/components/CrewSyncView';
 import EventCreateModal from '@/components/EventCreateModal';
+import EventPoster from '@/components/EventPoster';
 import MyTicketsView from '@/components/MyTicketsView';
 import OperationsView from '@/components/OperationsView';
 import TeamsRegistrationView from '@/components/TeamsRegistrationView';
 import UnstopDiscoveryView from '@/components/UnstopDiscoveryView';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, isMockMode } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
 import {
-  canAccessCrewSync,
+  canManageEvents,
   MAIN_NAVIGATION,
   ROLE_LABELS,
-  ROLE_PERMISSIONS,
 } from '@/lib/auth/roles';
 import {
   detectAudienceClashes,
@@ -58,6 +60,7 @@ import {
 } from '@/types/domain';
 
 const NAV_ICONS: Record<string, React.ReactNode> = {
+  calendar: <CalendarDays size={16}/>,
   home: <Home className="h-4 w-4 shrink-0" />,
   events: <Compass className="h-4 w-4 shrink-0" />,
   clubs: <Building2 className="h-4 w-4 shrink-0" />,
@@ -90,61 +93,9 @@ function formatTimeRange(startIso: string, endIso: string): string {
   return `${datePart} · ${startTime}–${endTime}`;
 }
 
-function HeroIllustration() {
-  return (
-    <svg
-      viewBox="0 0 391 320"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className="w-full max-w-[380px] h-auto mx-auto"
-      aria-hidden="true"
-    >
-      <ellipse cx="195" cy="292" rx="145" ry="12" fill="#E8EEF3" />
-      <rect x="160" y="226" width="44" height="36" rx="2" fill="#CFD8DC" />
-      <rect x="132" y="258" width="100" height="8" rx="4" fill="#B0BEC5" />
-      <rect x="52" y="42" width="260" height="186" rx="10" fill="#263238" />
-      <rect x="62" y="52" width="240" height="156" rx="4" fill="#FFFFFF" />
-      <rect x="62" y="52" width="240" height="20" rx="2" fill="#F5F7FA" />
-      <circle cx="74" cy="62" r="3" fill="#4CAF4F" />
-      <circle cx="84" cy="62" r="3" fill="#CFD8DC" />
-      <circle cx="94" cy="62" r="3" fill="#CFD8DC" />
-      <rect x="76" y="84" width="96" height="108" rx="6" fill="#F5F7FA" />
-      <rect x="86" y="96" width="52" height="6" rx="3" fill="#4CAF4F" />
-      <rect x="86" y="110" width="74" height="5" rx="2.5" fill="#CFD8DC" />
-      <rect x="86" y="122" width="62" height="5" rx="2.5" fill="#CFD8DC" />
-      <rect x="86" y="138" width="76" height="22" rx="4" fill="#E8F5E9" />
-      <rect x="94" y="146" width="44" height="6" rx="3" fill="#4CAF4F" />
-      <rect x="86" y="168" width="58" height="5" rx="2.5" fill="#CFD8DC" />
-      <rect
-        x="184"
-        y="76"
-        width="136"
-        height="92"
-        rx="8"
-        fill="#FFFFFF"
-        stroke="#E5E7EB"
-        strokeWidth="2"
-      />
-      <rect x="196" y="90" width="48" height="6" rx="3" fill="#263238" />
-      <rect x="196" y="104" width="110" height="20" rx="4" fill="#E8F5E9" />
-      <circle cx="208" cy="114" r="4" fill="#4CAF4F" />
-      <rect x="218" y="111" width="68" height="6" rx="3" fill="#4CAF4F" />
-      <rect x="196" y="134" width="84" height="6" rx="3" fill="#CFD8DC" />
-      <rect x="196" y="146" width="64" height="6" rx="3" fill="#CFD8DC" />
-      <circle cx="332" cy="126" r="14" fill="#263238" />
-      <path
-        d="M312 152C312 144.268 318.268 138 326 138H338C345.732 138 352 144.268 352 152V202H312V152Z"
-        fill="#4CAF4F"
-      />
-      <rect x="316" y="202" width="12" height="74" rx="4" fill="#263238" />
-      <rect x="336" y="202" width="12" height="74" rx="4" fill="#263238" />
-      <rect x="284" y="164" width="38" height="24" rx="3" fill="#43A046" />
-    </svg>
-  );
-}
-
 export default function CampusOSApp() {
-  const [role, setRole] = useState<UserRole>('club_organizer');
+  const router = useRouter();
+  const [role, setRole] = useState<UserRole>('student');
   const [activeTab, setActiveTab] = useState<string>('home');
   const [loading, setLoading] = useState(true);
   const [dataMode, setDataMode] = useState<'supabase' | 'local_seed'>(
@@ -161,6 +112,7 @@ export default function CampusOSApp() {
   );
   const [clubMetrics, setClubMetrics] = useState<ClubActivityMetric[]>([]);
 
+  const [judgingEventId,setJudgingEventId]=useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -179,24 +131,26 @@ export default function CampusOSApp() {
     'grid'
   );
 
+  const [connectionError, setConnectionError] = useState(false);
   const [authRequired, setAuthRequired] = useState(false);
+  const [entryRole, setEntryRole] = useState<UserRole>('student');
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'signup' | 'signin'>('signup');
+  const [registrationRole,setRegistrationRole] = useState<'volunteer'|'contestant'>('contestant');
   const [pendingEvent, setPendingEvent] = useState<CampusEvent | null>(null);
   const [authRefreshKey, setAuthRefreshKey] = useState(0);
 
   useEffect(() => {
     let active = true;
-    fetch('/api/bootstrap', {
-      headers: { 'x-demo-role': role },
-    })
+    fetch('/api/bootstrap', { cache: 'no-store' })
       .then(async (res) => {
         if (res.status === 401) {
           const pubRes = await fetch('/api/public/discover');
           const pubData = pubRes.ok ? await pubRes.json() : null;
           if (active) {
+            setConnectionError(false);
             setAuthRequired(true);
-            setDataMode('supabase');
+            setDataMode(isMockMode() ? 'local_seed' : 'supabase');
             if (pubData) {
               setClubs(pubData.clubs ?? []);
               setVenues(pubData.venues ?? []);
@@ -206,14 +160,16 @@ export default function CampusOSApp() {
           }
           return null;
         }
-        return res.ok ? res.json() : null;
+        if (!res.ok) throw new Error('Unable to load workspace');
+        return res.json();
       })
       .then((data) => {
         if (!active || !data) return;
+        setConnectionError(false);
         setAuthRequired(false);
         setDataMode(data.dataMode ?? 'local_seed');
         setCurrentUser(data.user ?? null);
-        if (data.dataMode === 'supabase' && data.user?.role) {
+        if (data.user?.role) {
           setRole(data.user.role);
         }
         setClubs(data.clubs ?? []);
@@ -223,16 +179,35 @@ export default function CampusOSApp() {
         setInvites(data.invites ?? []);
         setRecommendations(data.recommendations ?? []);
         setClubMetrics(data.clubMetrics ?? []);
+        const registrationId = window.sessionStorage.getItem('campusos_registration_event');
+        if (registrationId && data.user?.role === 'student') {
+          const event = (data.events as CampusEvent[]).find(e => e.id === registrationId);
+          if (event) {
+            setPendingEvent(event);
+            setActiveTab('teams');
+          }
+        }
+        window.sessionStorage.removeItem('campusos_registration_event');
         setLoading(false);
       })
       .catch(() => {
-        if (active) setLoading(false);
+        if (active) { setConnectionError(true); setLoading(false); }
       });
 
     return () => {
       active = false;
     };
-  }, [role, authRefreshKey]);
+  }, [authRefreshKey]);
+
+  useEffect(() => {
+    const refresh = () => setAuthRefreshKey(key => key + 1);
+    window.addEventListener('focus', refresh);
+    const timer = window.setInterval(() => { if (!document.hidden) refresh(); }, 15000);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      window.clearInterval(timer);
+    };
+  }, []);
 
   const visibleNav = useMemo(
     () => MAIN_NAVIGATION.filter((item) => item.roles.includes(role)),
@@ -243,12 +218,39 @@ export default function CampusOSApp() {
     ? activeTab
     : 'home';
 
+  const homeSection: Record<UserRole, string> = {
+    student: 'events',
+    club_organizer: 'crew-sync',
+    judge: 'competitions',
+    college_admin: 'operations',
+  };
+  const displayedSection = effectiveTab === 'home' ? homeSection[role] : effectiveTab;
+
+  const sectionLinks = visibleNav.filter(item => item.section !== 'home')
+    .sort((a, b) => Number(b.section === homeSection[role]) - Number(a.section === homeSection[role]))
+    .map(item => {
+    const labels: Record<string, string> = {
+      events: 'Events', clubs: 'Clubs', teams: 'Registrations', tickets: 'Tickets',
+      competitions: role === 'judge' ? 'Judging desk' : role === 'student' ? 'Projects & results' : 'Submissions',
+      operations: role === 'college_admin' ? 'Campus operations' : 'Event check-in',
+    };
+    return { section: item.section, label: labels[item.section] ?? item.label };
+  });
+
   const clashes = useMemo(() => detectVenueClashes(events, venues), [events, venues]);
+  const managedClubIds = useMemo(() => role === 'club_organizer'
+    ? new Set([...clubs.filter(c => c.ownerId === currentUser?.id).map(c => c.id), ...(currentUser?.managedClubIds ?? [])])
+    : undefined, [role, clubs, currentUser]);
+  const scheduleClashes = useMemo(() => {
+    if (!managedClubIds) return clashes;
+    const actionable = detectVenueClashes(events, venues, managedClubIds);
+    return [...actionable, ...clashes.filter(c => !managedClubIds.has(c.eventA.clubId) && !managedClubIds.has(c.eventB.clubId))];
+  }, [events, venues, managedClubIds, clashes]);
   const audienceClashes = useMemo(() => detectAudienceClashes(events), [events]);
 
   const filteredEvents = useMemo(() => {
     return events.filter((ev) => {
-      if (!canAccessCrewSync(role) && ev.status === 'draft') return false;
+      if (!canManageEvents(role) && ev.status === 'draft') return false;
       if (filterType !== 'all' && ev.eventType !== filterType) return false;
       if (filterClub !== 'all' && ev.clubId !== filterClub) return false;
       if (filterStatus !== 'all' && ev.status !== filterStatus) return false;
@@ -271,52 +273,49 @@ export default function CampusOSApp() {
         'Content-Type': 'application/json',
         'x-demo-role': role,
       },
-      body: JSON.stringify(newEvent),
+      body: JSON.stringify({ ...newEvent, reserveVenue: true }),
     });
     const data = await res.json();
     if (res.ok && data.event) {
       setEvents((prev) => [...prev, data.event]);
+      setJudgingEventId(data.event.id);
+      if (data.event.status === 'pending_approval') setApprovalMessage(data.event.title + ' was sent to the college admin for approval.');
+    } else {
+      if (res.status === 409) setAuthRefreshKey(key => key + 1);
+      throw new Error(data.error ?? "Could not save the event.");
     }
   };
 
-  const handlePublishDraft = async (eventId: string) => {
-    const res = await fetch(`/api/events/${eventId}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-demo-role': role,
-      },
-      body: JSON.stringify({ status: 'published' }),
-    });
-    const data = await res.json();
-    if (res.ok && data.event) {
-      setEvents((prev) =>
-        prev.map((ev) => (ev.id === eventId ? data.event : ev))
-      );
+  const [approvalMessage,setApprovalMessage] = useState('');
+  async function changeEventStatus(event: CampusEvent, status: CampusEvent['status']) {
+    try {
+      const res = await fetch('/api/events/'+event.id+'?from='+event.status, {
+        method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Unable to update the event.');
+      setEvents(prev=>prev.map(ev=>ev.id===event.id ? {...ev,...data.event} : ev));
+      setApprovalMessage(event.title + (status==='published' ? ' is published.' : status==='draft' ? ' was returned to the club as a draft.' : ' was submitted for approval.'));
+    } catch (error) {
+      setApprovalMessage(error instanceof Error ? error.message : 'Unable to update the event.');
     }
-  };
+  }
 
-  const handleResolveClash = async (eventId: string, newVenueId: string) => {
-    const res = await fetch(`/api/events/${eventId}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-demo-role': role,
-      },
-      body: JSON.stringify({ venueId: newVenueId }),
-    });
-    const data = await res.json();
-    if (res.ok && data.event) {
-      setEvents((prev) =>
-        prev.map((ev) => (ev.id === eventId ? data.event : ev))
-      );
-      setRecommendations((prev) =>
-        prev.map((rec) =>
-          rec.type === 'clash_resolution' && rec.eventId === eventId
-            ? { ...rec, status: 'accepted' }
-            : rec
-        )
-      );
+  const [planMessage, setPlanMessage] = useState('');
+  const handleResolveClash = async (eventId: string, newVenueId: string, slot?: {startTime: string; endTime: string}) => {
+    try {
+      const res = await fetch(`/api/events/${eventId}?resolveClash=1`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ venueId: newVenueId, startTime:slot?.startTime, endTime:slot?.endTime }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Unable to change the booking.');
+      setEvents(prev => prev.map(event => event.id === eventId ? data.event : event));
+      setPlanMessage(data.event.title + ' updated on the campus calendar.');
+    } catch (error) {
+      setPlanMessage(error instanceof Error ? error.message : 'Check your connection and scan again.');
+    } finally {
+      setAuthRefreshKey(key => key + 1);
     }
   };
 
@@ -330,9 +329,11 @@ export default function CampusOSApp() {
         'Content-Type': 'application/json',
         'x-demo-role': role,
       },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, expectedPlan: recommendations.find(r => r.id === id)?.scheduleChange }),
     });
     const data = await res.json();
+    setPlanMessage(res.ok ? 'Review saved.' : data.error ?? 'Unable to save this review.');
+    setAuthRefreshKey(key => key + 1);
     if (res.ok && data.recommendation) {
       setRecommendations((prev) =>
         prev.map((rec) => (rec.id === id ? data.recommendation : rec))
@@ -341,6 +342,13 @@ export default function CampusOSApp() {
   };
 
   const handleLogout = async () => {
+    if (isMockMode()) {
+      const response = await fetch('/api/auth/session', { method: 'DELETE' });
+      if (!response.ok) return;
+      router.replace('/login');
+      return;
+    }
+
     const supabase = createClient();
     if (supabase) {
       await supabase.auth.signOut();
@@ -409,10 +417,16 @@ export default function CampusOSApp() {
   const getVenueName = (venueId: string) =>
     venues.find((v) => v.id === venueId)?.name ?? venueId;
 
-  const totalRegistrations = events.reduce(
-    (sum, ev) => sum + ev.registrationsCount,
-    0
-  );
+  if (loading && !currentUser) {
+    return <main className="p-8 text-sm text-[#486055]" role="status">Loading campus events…</main>;
+  }
+
+  if (connectionError && !currentUser && !authRequired) {
+    return <main className="connection-state"><BeeLogo/><h1>campusBEE couldn’t connect</h1>
+      <p>Check your connection and try loading the campus workspace again.</p>
+      <button onClick={() => { setLoading(true); setAuthRefreshKey(k => k + 1); }}>Try again</button>
+    </main>;
+  }
 
   if (authRequired) {
     return (
@@ -422,16 +436,19 @@ export default function CampusOSApp() {
           clubs={clubs}
           venues={venues}
           onSelectEvent={(ev) => {
+            setEntryRole('student');
             setPendingEvent(ev);
             setAuthModalMode('signup');
             setAuthModalOpen(true);
           }}
           onOpenLogin={() => {
+            setEntryRole('student');
             setPendingEvent(null);
             setAuthModalMode('signin');
             setAuthModalOpen(true);
           }}
           onOpenSignup={() => {
+            setEntryRole('club_organizer');
             setPendingEvent(null);
             setAuthModalMode('signup');
             setAuthModalOpen(true);
@@ -439,6 +456,7 @@ export default function CampusOSApp() {
         />
         {authModalOpen && (
           <AuthModal
+            initialRole={entryRole}
             initialMode={authModalMode}
             selectedEvent={pendingEvent}
             onClose={() => setAuthModalOpen(false)}
@@ -457,473 +475,63 @@ export default function CampusOSApp() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-[#263238] flex flex-col md:flex-row">
-      {/* Left-Side Vertical Taskbar */}
-      <aside className="w-full md:w-64 md:h-screen md:sticky md:top-0 bg-white border-b md:border-b-0 md:border-r border-gray-200 flex flex-col justify-between z-30 shrink-0">
-        <div className="p-5 space-y-6">
-          <button
-            onClick={() => setActiveTab('home')}
-            className="flex items-center gap-2.5 text-left cursor-pointer"
-          >
-            <div className="h-7 w-7 rounded-md bg-[#4CAF4F] flex items-center justify-center text-white">
-              <Layers className="h-4 w-4" />
-            </div>
-            <span className="text-lg font-bold tracking-tight text-[#263238]">
-              CampusOS
-            </span>
+    <div className="workspace" data-role={role}>
+      <a className="skip-content" href="#workspace-main">Skip to workspace</a>
+      <header className="workspace-header">
+        <div className="workspace-identity">
+          <button className="workspace-brand" onClick={() => setActiveTab('home')} aria-label="campusBEE home">
+            <BeeLogo/>campusBEE
           </button>
-
-          <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible pb-1 md:pb-0">
-            {visibleNav.map((item) => {
-              const active = effectiveTab === item.section;
-              const isCrewSync = item.section === 'crew-sync';
-              return (
-                <button
-                  key={item.section}
-                  onClick={() => setActiveTab(item.section)}
-                  className={`flex items-center justify-between gap-2 px-3 py-2.5 rounded text-sm font-medium transition whitespace-nowrap cursor-pointer ${
-                    active
-                      ? 'bg-[#E8F5E9] text-[#4CAF4F]'
-                      : 'text-[#4D4D4D] hover:bg-[#F5F7FA] hover:text-[#4CAF4F]'
-                  }`}
-                >
-                  <span className="flex items-center gap-2.5">
-                    {NAV_ICONS[item.section]}
-                    <span>{item.label}</span>
-                  </span>
-                  {isCrewSync && clashes.length > 0 && (
-                    <span className="inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-semibold">
-                      {clashes.length}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-
-        <div className="hidden md:block p-5 border-t border-gray-100 space-y-3 bg-[#F5F7FA]/60">
-          {dataMode === 'local_seed' ? (
-            <div>
-              <label
-                htmlFor="role-select"
-                className="block text-[11px] font-medium uppercase tracking-wider text-[#717171] mb-1"
-              >
-                Active Role (Demo)
-              </label>
-              <select
-                id="role-select"
-                value={role}
-                onChange={(e) => setRole(e.target.value as UserRole)}
-                className="w-full text-xs font-medium text-[#4D4D4D] bg-white border border-gray-200 rounded px-2.5 py-2 focus:outline-none focus:border-[#4CAF4F] cursor-pointer"
-              >
-                {(Object.keys(ROLE_LABELS) as UserRole[]).map((r) => (
-                  <option key={r} value={r}>
-                    {ROLE_LABELS[r]}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-wider text-[#717171]">
-                  Account Role
-                </p>
-                <p className="text-xs font-semibold text-[#263238]">
-                  {ROLE_LABELS[role]}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => void handleLogout()}
-                className="text-[11px] font-medium text-[#0073E6] hover:underline cursor-pointer"
-              >
-                Switch Account
-              </button>
-            </div>
-          )}
-
-          <button
-            onClick={() =>
-              setActiveTab(canAccessCrewSync(role) ? 'crew-sync' : 'events')
-            }
-            className="w-full inline-flex items-center justify-center gap-1.5 bg-[#4CAF4F] hover:bg-[#43A046] text-white text-xs font-medium px-4 py-2.5 rounded transition cursor-pointer"
-          >
-            <span>
-              {canAccessCrewSync(role) ? 'Open Crew Sync' : 'Explore Events'}
-            </span>
-            <ArrowRight className="h-3.5 w-3.5" />
-          </button>
-
-          <div className="pt-2 border-t border-gray-200/80 flex items-center justify-between gap-2">
-            {currentUser ? (
-              <button
-                type="button"
-                onClick={openProfileModal}
-                className="flex items-center gap-2.5 min-w-0 text-left hover:bg-white p-1.5 -ml-1.5 rounded-lg transition cursor-pointer flex-1"
-                title="View full profile"
-              >
-                <div className="h-9 w-9 rounded-full bg-[#00A859] flex items-center justify-center text-white shrink-0 shadow-xs">
-                  <User className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-[#263238] truncate">
-                    {currentUser.name}
-                  </p>
-                  <p className="text-[11px] text-[#717171] truncate">
-                    {ROLE_LABELS[role]} · Profile
-                  </p>
-                </div>
-              </button>
-            ) : (
-              <span className="text-xs text-[#717171]">Loading session...</span>
-            )}
-
-            <button
-              type="button"
-              onClick={() => void handleLogout()}
-              title="Log out"
-              aria-label="Log out"
-              className="p-2 rounded-lg text-[#717171] hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer shrink-0"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
+          <span className="workspace-role">{ROLE_LABELS[role]}</span>
+          <div className="workspace-account">
+            {currentUser && <button className="account-profile" onClick={openProfileModal} aria-label={'Open profile for ' + currentUser.name}>
+              <User size={17}/><span>{currentUser.name}</span>
+            </button>}
+            <button onClick={() => void handleLogout()} aria-label="Log out" title="Log out"><LogOut size={18}/></button>
           </div>
         </div>
-      </aside>
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <main className="flex-1">
-          {loading && !currentUser ? (
+        <nav aria-label="Workspace sections" className="workspace-nav">
+          {sectionLinks.filter(link=>role!=='student' || !['teams','tickets','competitions','certificates'].includes(link.section)).map(link => <button type="button" key={link.section} className={link.section==='crew-sync'?'workspace-ai-pill':undefined} aria-current={displayedSection === link.section ? 'page' : undefined}
+            onClick={() => setActiveTab(link.section)}>
+            {link.section==='crew-sync'?<Terminal size={16}/>:NAV_ICONS[link.section]} {link.label}
+            {link.section === 'crew-sync' && canManageEvents(role) && scheduleClashes.length > 0 && <span className="nav-count" aria-label={scheduleClashes.length + ' conflicts'}>{scheduleClashes.length}</span>}
+          </button>)}
+          {role==='student' && (['activity','mobile'] as const).map(kind=><details key={kind} className={'discovery-nav-menu '+kind}
+            onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))e.currentTarget.open=false;}}
+            onKeyDown={e=>{if(e.key==='Escape'){e.currentTarget.open=false;e.currentTarget.querySelector('summary')?.focus();}}}>
+            <summary>{kind==='mobile'?<><Menu size={17}/> Menu</>:<>My Activity <ChevronDown size={15}/></>}</summary>
+            <div>{sectionLinks.filter(link=>kind==='mobile'||['teams','tickets','competitions','certificates'].includes(link.section)).map(link=>
+              <button key={link.section} aria-current={displayedSection===link.section?'page':undefined}
+                onClick={e=>{const menu=e.currentTarget.closest('details');if(menu){menu.open=false;menu.querySelector('summary')?.focus();}setActiveTab(link.section);}}>
+                {link.section==='crew-sync'?<Terminal size={16}/>:NAV_ICONS[link.section]}{link.label}</button>)}</div>
+          </details>)}
+          <label className="mobile-sections">Workspace
+            <select aria-label="Workspace section" value={displayedSection} onChange={e => setActiveTab(e.target.value)}>
+              {sectionLinks.map(link => <option value={link.section} key={link.section}>{link.label}</option>)}
+            </select>
+          </label>
+        </nav>
+      </header>
+      <div className="workspace-body">
+        <main id="workspace-main" tabIndex={-1} data-section={displayedSection}>
+          {approvalMessage && <p role="status" className="px-6 py-3">{approvalMessage} {judgingEventId && role==='club_organizer' && displayedSection!=='judging' && <button className="underline" onClick={()=>setActiveTab('judging')}>Set up judging</button>}</p>}
+          {loading ? (
             <div className="p-16 text-center text-sm text-[#717171]">
-              Loading CampusOS workspace...
+              Loading campusBEE workspace...
             </div>
           ) : (
             <>
-              {/* HOME VIEW */}
-              {effectiveTab === 'home' && currentUser && (
-                <>
-                  <section className="bg-[#F5F7FA] py-16 md:py-20">
-                    <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-12 gap-10 items-center">
-                      <div className="md:col-span-7 space-y-5">
-                        <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-[#4D4D4D] leading-[1.15]">
-                          Coordinate campus events{' '}
-                          <span className="block text-[#4CAF4F]">
-                            with Crew Sync AI
-                          </span>
-                        </h1>
-                        <p className="text-base text-[#717171] max-w-xl leading-relaxed">
-                          Signed in as{' '}
-                          <strong className="font-medium text-[#263238]">
-                            {currentUser.name}
-                          </strong>{' '}
-                          ({ROLE_LABELS[role]} · {currentUser.department}).
-                          Discover events, form teams, resolve venue clashes,
-                          and learn from every event.
-                        </p>
-                        <div className="flex flex-wrap items-center gap-3 pt-1">
-                          <button
-                            onClick={() =>
-                              setActiveTab(
-                                canAccessCrewSync(role) ? 'crew-sync' : 'events'
-                              )
-                            }
-                            className="bg-[#4CAF4F] hover:bg-[#43A046] text-white text-sm font-medium px-6 py-3 rounded transition cursor-pointer"
-                          >
-                            {canAccessCrewSync(role)
-                              ? 'Open Crew Sync AI'
-                              : 'Browse Events'}
-                          </button>
-                          <button
-                            onClick={() => setActiveTab('clubs')}
-                            className="bg-white hover:bg-gray-50 text-[#4D4D4D] border border-gray-200 text-sm font-medium px-5 py-3 rounded transition cursor-pointer"
-                          >
-                            View Campus Clubs
-                          </button>
-                        </div>
-                      </div>
-                      <div className="md:col-span-5">
-                        <HeroIllustration />
-                      </div>
-                    </div>
-                  </section>
-
-                  <section className="bg-white py-12 border-b border-gray-100">
-                    <div className="max-w-5xl mx-auto px-6 text-center space-y-6">
-                      <div className="space-y-1.5">
-                        <h2 className="text-2xl font-semibold text-[#4D4D4D]">
-                          Campus Clubs & Venues
-                        </h2>
-                        <p className="text-sm text-[#717171]">
-                          Unified calendar and shared infrastructure across
-                          active student organizations
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12 pt-2 text-sm font-medium text-[#717171]">
-                        {clubs.map((club) => (
-                          <span
-                            key={club.id}
-                            className="flex items-center gap-2 text-[#4D4D4D]"
-                          >
-                            <Building2 className="h-4 w-4 text-[#4CAF4F]" />
-                            {club.name}
-                          </span>
-                        ))}
-                        {venues.slice(0, 2).map((venue) => (
-                          <span
-                            key={venue.id}
-                            className="flex items-center gap-2 text-[#717171]"
-                          >
-                            <MapPin className="h-4 w-4 text-[#89939E]" />
-                            {venue.name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </section>
-
-                  <section className="bg-white py-16">
-                    <div className="max-w-5xl mx-auto px-6 space-y-10">
-                      <div className="text-center max-w-lg mx-auto space-y-2">
-                        <h2 className="text-2xl md:text-3xl font-semibold text-[#4D4D4D]">
-                          Manage your entire campus in a single system
-                        </h2>
-                        <p className="text-sm text-[#717171]">
-                          Role-based workflows built for students, clubs, and
-                          admins
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white border border-gray-100 rounded-lg p-7 text-center space-y-3 shadow-[0_2px_10px_rgba(0,0,0,0.03)]">
-                          <div className="mx-auto h-12 w-12 rounded-lg bg-[#E8F5E9] flex items-center justify-center text-[#4CAF4F]">
-                            <Users className="h-6 w-6" />
-                          </div>
-                          <h3 className="text-lg font-semibold text-[#4D4D4D]">
-                            Student Discovery & Teams
-                          </h3>
-                          <p className="text-sm text-[#717171] leading-relaxed">
-                            Browse events, register solo or form teams with
-                            invite links, submit projects, and earn QR
-                            certificates.
-                          </p>
-                        </div>
-
-                        <div className="bg-white border border-gray-100 rounded-lg p-7 text-center space-y-3 shadow-[0_2px_10px_rgba(0,0,0,0.03)]">
-                          <div className="mx-auto h-12 w-12 rounded-lg bg-[#E8F5E9] flex items-center justify-center text-[#4CAF4F]">
-                            <Calendar className="h-6 w-6" />
-                          </div>
-                          <h3 className="text-lg font-semibold text-[#4D4D4D]">
-                            Crew Sync Coordination
-                          </h3>
-                          <p className="text-sm text-[#717171] leading-relaxed">
-                            Deterministic venue clash checks, cross-club
-                            collaborations, volunteer matching, and club health
-                            signals.
-                          </p>
-                        </div>
-
-                        <div className="bg-white border border-gray-100 rounded-lg p-7 text-center space-y-3 shadow-[0_2px_10px_rgba(0,0,0,0.03)]">
-                          <div className="mx-auto h-12 w-12 rounded-lg bg-[#E8F5E9] flex items-center justify-center text-[#4CAF4F]">
-                            <ClipboardCheck className="h-6 w-6" />
-                          </div>
-                          <h3 className="text-lg font-semibold text-[#4D4D4D]">
-                            Judging & Verified Reports
-                          </h3>
-                          <p className="text-sm text-[#717171] leading-relaxed">
-                            Rubric-based evaluation, locked scoring, QR
-                            attendance check-in, and data-grounded post-event
-                            reports.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-
-                  <section className="bg-[#F5F7FA] py-14">
-                    <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
-                      <div className="md:col-span-5 space-y-2">
-                        <h2 className="text-2xl md:text-3xl font-semibold text-[#4D4D4D]">
-                          Helping campus clubs{' '}
-                          <span className="block text-[#4CAF4F]">
-                            coordinate & grow
-                          </span>
-                        </h2>
-                        <p className="text-sm text-[#717171]">
-                          Live snapshot from the shared campus API
-                        </p>
-                      </div>
-
-                      <div className="md:col-span-7 grid grid-cols-2 gap-6">
-                        <div className="flex items-center gap-3.5">
-                          <Users className="h-7 w-7 text-[#4CAF4F] shrink-0" />
-                          <div>
-                            <p className="text-2xl font-bold text-[#4D4D4D]">
-                              {totalRegistrations}
-                            </p>
-                            <p className="text-xs text-[#717171]">
-                              Registrations
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3.5">
-                          <Building2 className="h-7 w-7 text-[#4CAF4F] shrink-0" />
-                          <div>
-                            <p className="text-2xl font-bold text-[#4D4D4D]">
-                              {clubs.length}
-                            </p>
-                            <p className="text-xs text-[#717171]">
-                              Active Clubs
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3.5">
-                          <Calendar className="h-7 w-7 text-[#4CAF4F] shrink-0" />
-                          <div>
-                            <p className="text-2xl font-bold text-[#4D4D4D]">
-                              {events.length}
-                            </p>
-                            <p className="text-xs text-[#717171]">
-                              Published Events
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3.5">
-                          <AlertCircle
-                            className={`h-7 w-7 shrink-0 ${
-                              clashes.length > 0
-                                ? 'text-rose-500'
-                                : 'text-[#4CAF4F]'
-                            }`}
-                          />
-                          <div>
-                            <p className="text-2xl font-bold text-[#4D4D4D]">
-                              {clashes.length}
-                            </p>
-                            <p className="text-xs text-[#717171]">
-                              {clashes.length > 0
-                                ? 'Venue Clash Flagged'
-                                : 'Conflicts Remaining'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-
-                  <section className="bg-white py-16">
-                    <div className="max-w-5xl mx-auto px-6 space-y-10">
-                      <div className="text-center max-w-xl mx-auto space-y-2">
-                        <h2 className="text-2xl md:text-3xl font-semibold text-[#4D4D4D]">
-                          Upcoming Campus Events
-                        </h2>
-                        <p className="text-sm text-[#717171]">
-                          Discover hackathons, workshops, and design jams across
-                          campus
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {events.slice(0, 3).map((ev) => (
-                          <article
-                            key={ev.id}
-                            className="bg-[#F5F7FA] rounded-lg p-6 flex flex-col justify-between space-y-4 border border-gray-100"
-                          >
-                            <div className="space-y-2.5">
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="font-medium text-[#4CAF4F]">
-                                  {getClubName(ev.clubId)}
-                                </span>
-                                <span className="text-[#717171]">
-                                  {ev.eventType}
-                                </span>
-                              </div>
-                              <h3 className="text-lg font-semibold text-[#4D4D4D]">
-                                {ev.title}
-                              </h3>
-                              <p className="text-sm text-[#717171] leading-relaxed">
-                                {ev.description}
-                              </p>
-                            </div>
-
-                            <div className="pt-3 border-t border-gray-200/80 space-y-1.5 text-xs text-[#717171]">
-                              <p>{formatTimeRange(ev.startTime, ev.endTime)}</p>
-                              <div className="flex items-center justify-between pt-1">
-                                <span className="font-medium text-[#4D4D4D]">
-                                  {getVenueName(ev.venueId)}
-                                </span>
-                                <button
-                                  onClick={() => setActiveTab('events')}
-                                  className="inline-flex items-center gap-1 text-[#4CAF4F] font-semibold hover:underline cursor-pointer"
-                                >
-                                  Details <ArrowRight className="h-3 w-3" />
-                                </button>
-                              </div>
-                            </div>
-                          </article>
-                        ))}
-                      </div>
-                    </div>
-                  </section>
-
-                  <section className="bg-[#F5F7FA] py-14">
-                    <div className="max-w-5xl mx-auto px-6 space-y-6">
-                      <div className="space-y-1">
-                        <h2 className="text-xl font-semibold text-[#4D4D4D]">
-                          Active Role Boundaries · {ROLE_LABELS[role]}
-                        </h2>
-                        <p className="text-sm text-[#717171]">
-                          Permissions enforced by API route guards and Supabase
-                          Row Level Security
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="bg-white rounded-lg border border-gray-100 p-6 space-y-3">
-                          <h3 className="text-sm font-semibold text-[#4CAF4F] flex items-center gap-2">
-                            <CheckCircle2 className="h-4 w-4" />
-                            Allowed Actions
-                          </h3>
-                          <ul className="space-y-2 text-sm text-[#717171]">
-                            {ROLE_PERMISSIONS[role].canDo.map((item) => (
-                              <li key={item} className="flex items-start gap-2">
-                                <Check className="h-4 w-4 text-[#4CAF4F] shrink-0 mt-0.5" />
-                                <span>{item}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-
-                        <div className="bg-white rounded-lg border border-gray-100 p-6 space-y-3">
-                          <h3 className="text-sm font-semibold text-[#4D4D4D] flex items-center gap-2">
-                            <ShieldCheck className="h-4 w-4 text-[#717171]" />
-                            Restricted by Default
-                          </h3>
-                          <ul className="space-y-2 text-sm text-[#717171]">
-                            {ROLE_PERMISSIONS[role].restrictedByDefault.map(
-                              (item) => (
-                                <li
-                                  key={item}
-                                  className="flex items-start gap-2"
-                                >
-                                  <X className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />
-                                  <span>{item}</span>
-                                </li>
-                              )
-                            )}
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-                </>
-              )}
-
-              {/* EXPLORE EVENTS TAB */}
-              {effectiveTab === 'events' && (
-                <section className="py-10 max-w-5xl mx-auto px-6 space-y-6">
+              {displayedSection === 'events' && role === 'student' && eventsViewMode === 'grid' ? (
+                <UnstopDiscoveryView events={events} clubs={clubs} venues={venues}
+                  onVolunteer={event => {setRegistrationRole('volunteer'); setPendingEvent(event); setActiveTab('teams');}}
+                  onSelectEvent={event => { setRegistrationRole('contestant'); setPendingEvent(event); setActiveTab('teams'); }}
+                  onOpenLogin={() => void handleLogout()}
+                  onOpenCalendar={() => setActiveTab('calendar')}
+                  registeredIds={teams.filter(team => team.members.some(m => m.userId === currentUser?.id)).map(team => team.eventId)}
+                  onOpenRegistrations={() => setActiveTab('tickets')}
+                />
+              ) : displayedSection === 'events' && (
+                <section className="work-page py-10 max-w-5xl mx-auto px-6 space-y-6">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="space-y-1">
                       <h1 className="text-3xl font-semibold text-[#4D4D4D]">
@@ -958,10 +566,10 @@ export default function CampusOSApp() {
                         </button>
                       </div>
 
-                      {canAccessCrewSync(role) && (
+                      {canManageEvents(role) && (
                         <button
                           onClick={() => setShowCreateModal(true)}
-                          className="inline-flex items-center gap-1.5 bg-[#4CAF4F] hover:bg-[#43A046] text-white text-xs font-medium px-3.5 py-2 rounded transition cursor-pointer"
+                          className="inline-flex items-center gap-1.5 bg-action hover:bg-action-hover text-white text-xs font-medium px-3.5 py-2 rounded transition cursor-pointer"
                         >
                           <Plus className="h-3.5 w-3.5" />
                           Create Event
@@ -978,7 +586,7 @@ export default function CampusOSApp() {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search events or tags..."
-                        className="w-full text-xs bg-white border border-gray-200 rounded pl-9 pr-3 py-2 focus:outline-none focus:border-[#4CAF4F]"
+                        className="w-full text-xs bg-white border border-gray-200 rounded pl-9 pr-3 py-2 focus:outline-none focus:border-action"
                       />
                     </div>
 
@@ -1014,8 +622,9 @@ export default function CampusOSApp() {
                       className="text-xs bg-white border border-gray-200 rounded px-3 py-2 text-[#4D4D4D]"
                     >
                       <option value="all">All Statuses</option>
+                      <option value="pending_approval">Pending approval</option>
                       <option value="published">Published</option>
-                      {canAccessCrewSync(role) && (
+                      {canManageEvents(role) && (
                         <option value="draft">Draft</option>
                       )}
                     </select>
@@ -1028,7 +637,7 @@ export default function CampusOSApp() {
                       venues={venues}
                       venueClashes={clashes}
                       audienceClashes={audienceClashes}
-                      canManage={canAccessCrewSync(role)}
+                      canManage={canManageEvents(role)}
                       onResolveClash={handleResolveClash}
                     />
                   ) : filteredEvents.length === 0 ? (
@@ -1040,15 +649,16 @@ export default function CampusOSApp() {
                       {filteredEvents.map((ev) => (
                         <div
                           key={ev.id}
-                          className="bg-white border border-gray-200 rounded-lg p-6 flex flex-col justify-between space-y-4"
+                          className="managed-event bg-white border border-gray-200 rounded-lg p-6 flex flex-col justify-between space-y-4"
                         >
                           <div className="space-y-2.5">
+                            <div className="managed-poster"><EventPoster event={ev}/></div>
                             <div className="flex items-center justify-between text-xs">
-                              <span className="px-2.5 py-0.5 rounded bg-[#E8F5E9] text-[#4CAF4F] font-medium">
+                              <span className="px-2.5 py-0.5 rounded bg-action-tint text-action font-medium">
                                 {getClubName(ev.clubId)}
                               </span>
                               <span className="text-[#717171] capitalize">
-                                {ev.status}
+                                {ev.status.replace('_',' ')}
                               </span>
                             </div>
                             <h2 className="text-lg font-semibold text-[#4D4D4D]">
@@ -1083,15 +693,15 @@ export default function CampusOSApp() {
                                 Team Size:
                               </strong>{' '}
                               {ev.minTeamSize === ev.maxTeamSize
-                                ? `${ev.minTeamSize} (Solo)`
+                                ? `${ev.minTeamSize === 1 ? 'Individual' : ev.minTeamSize + ' members'}`
                                 : `${ev.minTeamSize}–${ev.maxTeamSize} members`}
                             </p>
-                            {canAccessCrewSync(role) && ev.status === 'draft' && (
+                            {canManageEvents(role) && ev.status === 'draft' && (
                               <button
-                                onClick={() => void handlePublishDraft(ev.id)}
-                                className="mt-2 w-full text-xs px-3 py-1.5 rounded bg-[#4CAF4F] hover:bg-[#43A046] text-white font-medium cursor-pointer"
+                                onClick={() => void changeEventStatus(ev, role==='college_admin' ? 'published' : 'pending_approval')}
+                                className="mt-2 w-full text-xs px-3 py-1.5 rounded bg-action hover:bg-action-hover text-white font-medium cursor-pointer"
                               >
-                                Publish Event
+                                {role==='college_admin' ? 'Publish event' : 'Submit for approval'}
                               </button>
                             )}
                           </div>
@@ -1102,9 +712,14 @@ export default function CampusOSApp() {
                 </section>
               )}
 
+              {displayedSection === 'calendar' && <section className="work-page space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-3"><div><h1>Campus calendar</h1><p>Events across college clubs · India Standard Time</p></div>
+                {role === 'club_organizer' && <button className="rounded bg-action text-white px-4 py-2" onClick={() => setShowCreateModal(true)}>Plan an event</button>}</div>
+                <CampusCalendar events={events} clubs={clubs} venues={venues} venueClashes={clashes} audienceClashes={audienceClashes} canManage={false}/>
+              </section>}
               {/* CLUBS TAB */}
-              {effectiveTab === 'clubs' && (
-                <section className="py-10 max-w-5xl mx-auto px-6 space-y-8">
+              {displayedSection === 'clubs' && (
+                <section className="work-page py-10 max-w-5xl mx-auto px-6 space-y-8">
                   <div className="space-y-1">
                     <h1 className="text-3xl font-semibold text-[#4D4D4D]">
                       Campus Clubs
@@ -1125,7 +740,7 @@ export default function CampusOSApp() {
                           <span className="text-[#717171]">
                             {club.category}
                           </span>
-                          <span className="text-[#4CAF4F] font-medium">
+                          <span className="text-action font-medium">
                             {club.memberCount} members
                           </span>
                         </div>
@@ -1139,7 +754,7 @@ export default function CampusOSApp() {
                           {club.capabilities.map((cap) => (
                             <span
                               key={cap}
-                              className="text-[11px] px-2 py-0.5 rounded bg-[#E8F5E9] text-[#4CAF4F]"
+                              className="text-[11px] px-2 py-0.5 rounded bg-action-tint text-action"
                             >
                               {cap}
                             </span>
@@ -1152,8 +767,10 @@ export default function CampusOSApp() {
               )}
 
               {/* MY TEAMS & REGISTRATIONS */}
-              {effectiveTab === 'teams' && currentUser && (
+              {displayedSection === 'teams' && currentUser && (
                 <TeamsRegistrationView
+                  initialEventId={pendingEvent?.id}
+                  initialRole={registrationRole} onRegistered={() => setAuthRefreshKey(key => key + 1)}
                   student={currentUser}
                   events={events}
                   teams={teams}
@@ -1165,46 +782,67 @@ export default function CampusOSApp() {
               )}
 
               {/* MY TICKETS (Student Portal Only) */}
-              {effectiveTab === 'tickets' && role === 'student' && (
-                <MyTicketsView role={role} />
+              {displayedSection === 'tickets' && role === 'student' && (
+                <MyTicketsView role={role} onBrowseEvents={() => { setEventsViewMode('grid'); setActiveTab('events'); }} />
               )}
 
+              {displayedSection === 'judging' && role==='club_organizer' && <JudgingManagement initialEventId={judgingEventId} events={events.filter(e=>managedClubIds?.has(e.clubId))}/>}
               {/* COMPETITIONS, JUDGING & LEADERBOARD */}
-              {effectiveTab === 'competitions' && (
-                <CompetitionsView role={role} events={events} teams={teams} />
+              {displayedSection === 'competitions' && (
+                <>
+                  {role==='judge' && <JudgePortal embedded/>}
+                  {(role!=='judge'||events.some(ev=>ev.assignedToJudge)) && <CompetitionsView role={role} events={role==='judge'?events.filter(ev=>ev.assignedToJudge):events} teams={teams}/>}
+                  {role==='judge' && !events.some(ev=>ev.assignedToJudge) && <p className="work-page">No projects have been assigned directly to this judge account. For direct assignment, the organiser can select your account under Submissions after a candidate submits their project.</p>}
+                </>
               )}
 
               {/* CERTIFICATES */}
-              {effectiveTab === 'certificates' && (
+              {displayedSection === 'certificates' && (
                 <CertificatesView role={role} events={events} />
               )}
 
               {/* CREW SYNC AI */}
-              {effectiveTab === 'crew-sync' && canAccessCrewSync(role) && (
-                <CrewSyncView
+              {displayedSection === 'crew-sync' && role==='student' && currentUser && <StudentCrewSync student={currentUser} events={events}
+                onTickets={()=>setActiveTab('tickets')} onRegister={(event,participation)=>{setPendingEvent(event);setRegistrationRole(participation);setActiveTab('teams');}}/>}
+              {displayedSection === 'crew-sync' && canManageEvents(role) && (
+                <CrewSyncView key={role} onReviewRequests={()=>setActiveTab('operations')} calendarEvents={events}
                   role={role}
-                  events={events}
+                  events={events.filter(e => !managedClubIds || managedClubIds.has(e.clubId))}
                   clubs={clubs}
+                  managedClubId={managedClubIds?.values().next().value}
+                  planMessage={planMessage}
                   venues={venues}
-                  clashes={clashes}
-                  recommendations={recommendations}
+                  clashes={scheduleClashes}
+                  audienceClashes={audienceClashes}
+                  refreshSchedule={() => setAuthRefreshKey(key => key + 1)}
+                  recommendations={recommendations.filter(r => !managedClubIds || (r.clubId && managedClubIds.has(r.clubId)))}
                   clubMetrics={clubMetrics}
+                  onOpenCalendar={() => setActiveTab('calendar')}
                   onOpenCreateEvent={() => setShowCreateModal(true)}
                   onResolveClash={handleResolveClash}
                   onRecommendationAction={handleRecommendationAction}
                   onRecommendationAdded={(rec) =>
-                    setRecommendations((prev) => [rec, ...prev])
+                    setRecommendations((prev) => [rec, ...prev.filter(r => r.id !== rec.id)])
                   }
                 />
               )}
 
+              {role==='college_admin' && displayedSection==='operations' && <section className="work-page space-y-3">
+                <h2>Event approval requests</h2>
+                {events.filter(ev=>ev.status==='pending_approval').length===0 && <p>No requests awaiting review.</p>}
+                {events.filter(ev=>ev.status==='pending_approval').map(ev=><article key={ev.id} className="rounded-xl border bg-white p-4 space-y-2">
+                  <h3>{ev.title}</h3><p>{getClubName(ev.clubId)} · {formatTimeRange(ev.startTime,ev.endTime)} · {getVenueName(ev.venueId)}</p>
+                  <p>{ev.description}</p>
+                  <div className="flex gap-3"><button className="px-3 py-2 rounded bg-action text-white" onClick={()=>void changeEventStatus(ev,'published')}>Approve and publish</button>
+                  <button className="px-3 py-2 rounded border" onClick={()=>void changeEventStatus(ev,'draft')}>Return to club</button></div>
+                </article>)}
+              </section>}
               {/* ORGANIZER / ADMIN OPERATIONS */}
-              {effectiveTab === 'operations' && (
+              {displayedSection === 'operations' && (
                 <OperationsView
                   role={role}
-                  events={events}
+                  events={dataMode === 'local_seed' && managedClubIds ? events.filter(e => managedClubIds.has(e.clubId)) : events}
                   venues={venues}
-                  dataMode={dataMode}
                   onVenueAdded={(v) => setVenues((prev) => [...prev, v])}
                 />
               )}
@@ -1214,20 +852,20 @@ export default function CampusOSApp() {
 
         {/* Event Create Modal */}
         {showCreateModal && (
-          <EventCreateModal
-            clubs={clubs}
+          <EventCreateModal needsApproval={role === 'club_organizer'}
+            clubs={role === 'club_organizer' && dataMode === 'local_seed' ? clubs.filter(c => c.ownerId === currentUser?.id || currentUser?.managedClubIds?.includes(c.id)) : clubs}
             venues={venues}
             existingEvents={events}
             defaultClubId={currentUser?.managedClubIds?.[0]}
             onClose={() => setShowCreateModal(false)}
-            onSaveEvent={(ev) => void handleAddEvent(ev)}
+            onSaveEvent={handleAddEvent}
           />
         )}
 
         {/* Full Profile Modal */}
         {showProfileModal && currentUser && (
-          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px] flex items-center justify-center p-4">
-            <div className="bg-white border border-gray-200 rounded-xl max-w-md w-full p-6 shadow-xl space-y-5 relative">
+          <WorkspaceDialog title="Your profile" variant="profile" onClose={() => setShowProfileModal(false)}>
+            <div className="bg-white w-full p-6 space-y-5 relative">
               <button
                 type="button"
                 onClick={() => setShowProfileModal(false)}
@@ -1245,14 +883,14 @@ export default function CampusOSApp() {
                   <h2 className="text-lg font-bold text-[#263238]">
                     {currentUser.name}
                   </h2>
-                  <span className="inline-block text-xs px-2.5 py-0.5 rounded-full bg-[#E8F5E9] text-[#4CAF4F] font-medium mt-0.5">
+                  <span className="inline-block text-xs px-2.5 py-0.5 rounded-full bg-action-tint text-action font-medium mt-0.5">
                     {ROLE_LABELS[currentUser.role]}
                   </span>
                 </div>
               </div>
 
               {profileSaveMsg && (
-                <p className="text-xs px-3 py-2 rounded bg-[#E8F5E9] text-[#263238] font-medium">
+                <p className="text-xs px-3 py-2 rounded bg-action-tint text-[#263238] font-medium">
                   {profileSaveMsg}
                 </p>
               )}
@@ -1260,10 +898,10 @@ export default function CampusOSApp() {
               {editingProfile ? (
                 <form onSubmit={handleSaveProfile} className="space-y-3 text-xs">
                   <div>
-                    <label className="block font-medium text-[#4D4D4D] mb-1">
+                    <label htmlFor="workspace-email-read-only" className="block font-medium text-[#4D4D4D] mb-1">
                       Email (read-only)
                     </label>
-                    <input
+                    <input id="workspace-email-read-only"
                       type="email"
                       disabled
                       value={currentUser.email}
@@ -1272,10 +910,10 @@ export default function CampusOSApp() {
                   </div>
                   <div className="grid grid-cols-2 gap-2.5">
                     <div>
-                      <label className="block font-medium text-[#4D4D4D] mb-1">
+                      <label htmlFor="workspace-full-name" className="block font-medium text-[#4D4D4D] mb-1">
                         Full Name
                       </label>
-                      <input
+                      <input id="workspace-full-name"
                         type="text"
                         required
                         value={profileName}
@@ -1284,10 +922,10 @@ export default function CampusOSApp() {
                       />
                     </div>
                     <div>
-                      <label className="block font-medium text-[#4D4D4D] mb-1">
+                      <label htmlFor="workspace-department" className="block font-medium text-[#4D4D4D] mb-1">
                         Department
                       </label>
-                      <input
+                      <input id="workspace-department"
                         type="text"
                         required
                         value={profileDepartment}
@@ -1298,10 +936,10 @@ export default function CampusOSApp() {
                   </div>
                   <div className="grid grid-cols-2 gap-2.5">
                     <div>
-                      <label className="block font-medium text-[#4D4D4D] mb-1">
+                      <label htmlFor="workspace-year" className="block font-medium text-[#4D4D4D] mb-1">
                         Year
                       </label>
-                      <input
+                      <input id="workspace-year"
                         type="number"
                         min={1}
                         max={6}
@@ -1312,10 +950,10 @@ export default function CampusOSApp() {
                       />
                     </div>
                     <div>
-                      <label className="block font-medium text-[#4D4D4D] mb-1">
+                      <label htmlFor="workspace-roll-number" className="block font-medium text-[#4D4D4D] mb-1">
                         Roll Number
                       </label>
-                      <input
+                      <input id="workspace-roll-number"
                         type="text"
                         value={profileRoll}
                         onChange={(e) => setProfileRoll(e.target.value)}
@@ -1325,10 +963,10 @@ export default function CampusOSApp() {
                     </div>
                   </div>
                   <div>
-                    <label className="block font-medium text-[#4D4D4D] mb-1">
+                    <label htmlFor="workspace-skills-comma-separated" className="block font-medium text-[#4D4D4D] mb-1">
                       Skills (comma separated)
                     </label>
-                    <input
+                    <input id="workspace-skills-comma-separated"
                       type="text"
                       value={profileSkills}
                       onChange={(e) => setProfileSkills(e.target.value)}
@@ -1337,10 +975,10 @@ export default function CampusOSApp() {
                     />
                   </div>
                   <div>
-                    <label className="block font-medium text-[#4D4D4D] mb-1">
+                    <label htmlFor="workspace-interests-comma-separated" className="block font-medium text-[#4D4D4D] mb-1">
                       Interests (comma separated)
                     </label>
-                    <input
+                    <input id="workspace-interests-comma-separated"
                       type="text"
                       value={profileInterests}
                       onChange={(e) => setProfileInterests(e.target.value)}
@@ -1359,7 +997,7 @@ export default function CampusOSApp() {
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 rounded bg-[#4CAF4F] hover:bg-[#43A046] text-white font-medium cursor-pointer"
+                      className="px-4 py-2 rounded bg-action hover:bg-action-hover text-white font-medium cursor-pointer"
                     >
                       Save Changes
                     </button>
@@ -1417,7 +1055,7 @@ export default function CampusOSApp() {
                       <button
                         type="button"
                         onClick={() => setEditingProfile(true)}
-                        className="px-4 py-2 rounded bg-[#4CAF4F] hover:bg-[#43A046] text-white text-xs font-medium cursor-pointer"
+                        className="px-4 py-2 rounded bg-action hover:bg-action-hover text-white text-xs font-medium cursor-pointer"
                       >
                         Edit Profile
                       </button>
@@ -1433,69 +1071,8 @@ export default function CampusOSApp() {
                 </>
               )}
             </div>
-          </div>
+          </WorkspaceDialog>
         )}
-
-        {/* Minimal Dark Footer */}
-        <footer className="bg-[#263238] text-gray-300 py-12">
-          <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-8 text-sm">
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-white font-bold text-lg">
-                <div className="h-6 w-6 rounded bg-[#4CAF4F] flex items-center justify-center">
-                  <Layers className="h-3.5 w-3.5 text-white" />
-                </div>
-                CampusOS
-              </div>
-              <p className="text-xs text-gray-400 leading-relaxed">
-                College-wide event ecosystem with Crew Sync AI coordination.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <p className="font-semibold text-white">Platform</p>
-              <ul className="space-y-1.5 text-xs text-gray-400">
-                <li>
-                  <button
-                    onClick={() => setActiveTab('events')}
-                    className="hover:text-white cursor-pointer"
-                  >
-                    Explore Events
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => setActiveTab('clubs')}
-                    className="hover:text-white cursor-pointer"
-                  >
-                    Campus Clubs
-                  </button>
-                </li>
-              </ul>
-            </div>
-
-            <div className="space-y-2">
-              <p className="font-semibold text-white">Intelligence</p>
-              <ul className="space-y-1.5 text-xs text-gray-400">
-                <li>Clash Detection</li>
-                <li>Volunteer Matching</li>
-                <li>Club Health & Reports</li>
-              </ul>
-            </div>
-
-            <div className="space-y-2">
-              <p className="font-semibold text-white">Environment</p>
-              <p className="text-xs text-gray-400">
-                Backend:{' '}
-                <span className="text-[#4CAF4F]">
-                  {dataMode === 'supabase' ? 'Supabase' : 'Local API Store'}
-                </span>
-              </p>
-              <p className="text-xs text-gray-400">
-                Active Role: {ROLE_LABELS[role]}
-              </p>
-            </div>
-          </div>
-        </footer>
       </div>
     </div>
   );

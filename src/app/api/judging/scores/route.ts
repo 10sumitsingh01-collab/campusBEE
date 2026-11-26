@@ -1,3 +1,4 @@
+import { saveDemoStore } from '@/lib/server/store';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   forbiddenResponse,
@@ -143,6 +144,7 @@ export async function POST(request: NextRequest) {
     store.scores = store.scores.map((s) =>
       s.judgeAssignmentId === assignment.id ? { ...s, locked: false } : s
     );
+    saveDemoStore(store);
     return NextResponse.json({ unlocked: true });
   }
 
@@ -167,10 +169,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const eventCriteria = store.rubrics.filter(c => c.eventId === assignment.eventId);
+  if (body.scores.length !== eventCriteria.length || new Set(body.scores.map(s => s.criterionId)).size !== eventCriteria.length) {
+    return NextResponse.json({ error: 'Score every criterion once.' }, { status: 400 });
+  }
   const saved: ScoreEntry[] = [];
   for (const item of body.scores) {
-    const criterion = store.rubrics.find((r) => r.id === item.criterionId);
-    if (!criterion || item.score < 0 || item.score > criterion.maxScore) {
+    const criterion = eventCriteria.find((r) => r.id === item.criterionId);
+    if (!criterion || !Number.isFinite(item.score) || item.score < 0 || item.score > criterion.maxScore) {
       return NextResponse.json(
         {
           error: `Invalid score for criterion ${item.criterionId} (must be 0..${criterion?.maxScore ?? '?'}).`,
@@ -196,5 +202,6 @@ export async function POST(request: NextRequest) {
     ...saved,
   ];
 
+  saveDemoStore(store);
   return NextResponse.json({ scores: saved }, { status: 201 });
 }

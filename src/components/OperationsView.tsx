@@ -12,12 +12,12 @@ import {
   MapPin,
   Plus,
   QrCode,
-  Server,
   Users,
   Volume2,
   VolumeX,
   XCircle,
 } from 'lucide-react';
+import { readCardPhoto } from '@/lib/readCardPhoto';
 import DemoIdCardsSection from '@/components/DemoIdCardsSection';
 import { playErrorTone, playSuccessTing } from '@/lib/audio/scanSounds';
 import { CampusEvent, CollegeIdCard, UserRole, Venue } from '@/types/domain';
@@ -65,19 +65,24 @@ interface OperationsViewProps {
   role: UserRole;
   events: CampusEvent[];
   venues: Venue[];
-  dataMode: 'supabase' | 'local_seed';
   onVenueAdded: (venue: Venue) => void;
+}
+
+// Media capture availability is fixed for the lifetime of this document.
+const subscribeCameraSupport = () => () => {};
+function getCameraSupport() {
+  if (!window.isSecureContext) return 'insecure' as const;
+  return typeof navigator.mediaDevices?.getUserMedia === 'function' ? 'available' as const : 'unsupported' as const;
 }
 
 export default function OperationsView({
   role,
   events,
   venues,
-  dataMode,
   onVenueAdded,
 }: OperationsViewProps) {
   const [scannerMode, setScannerMode] = useState<'qr_pass' | 'college_id'>(
-    'qr_pass'
+    'college_id'
   );
   const [selectedEventId, setSelectedEventId] = useState(events[0]?.id ?? '');
   const effectiveEventId = selectedEventId || events[0]?.id || '';
@@ -91,10 +96,16 @@ export default function OperationsView({
   const [demoCards, setDemoCards] = useState<CollegeIdCard[]>([]);
   const [muted, setMuted] = useState(false);
 
+  const [linkCode, setLinkCode] = useState('');
+  const [pendingCard, setPendingCard] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [readingPhoto, setReadingPhoto] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
+  const cameraSession = useRef(0);
+  const mounted = useRef(false);
   const processingRef = useRef(false);
 
   const [venueName, setVenueName] = useState('');
@@ -154,6 +165,7 @@ export default function OperationsView({
   }, [effectiveEventId, isOrganizerOrAdmin, role]);
 
   const stopCamera = useCallback(() => {
+    cameraSession.current++;
     if (controlsRef.current) {
       try {
         controlsRef.current.stop();
@@ -166,7 +178,9 @@ export default function OperationsView({
   }, []);
 
   useEffect(() => {
+    mounted.current = true;
     return () => {
+      mounted.current = false;
       if (controlsRef.current) {
         try {
           controlsRef.current.stop();
@@ -181,7 +195,8 @@ export default function OperationsView({
     async (
       codeValue: string,
       method: 'qr' | 'manual' | 'barcode',
-      modeOverride?: 'qr_pass' | 'college_id'
+      modeOverride?: 'qr_pass' | 'college_id',
+      ticketCode?: string
     ) => {
       const normalized = String(codeValue ?? '').trim();
       if (!effectiveEventId || !normalized || processingRef.current) {
@@ -193,13 +208,8 @@ export default function OperationsView({
       setScanStatus('Barcode Detected');
       const activeMode = modeOverride ?? scannerMode;
 
-      console.log('[ZXing Scanner] Processing decoded code:', {
-        mode: activeMode,
-        method,
-        eventId: effectiveEventId,
-        code: normalized,
-      });
-
+      setBusy(true);
+      if (!ticketCode) { setPendingCard(''); setLinkCode(''); }
       try {
         if (activeMode === 'college_id') {
           const res = await fetch(
@@ -212,12 +222,20 @@ export default function OperationsView({
               },
               body: JSON.stringify({
                 barcodeOrUsn: normalized,
+                ticketCode,
                 method: method === 'manual' ? 'manual' : 'barcode',
               }),
             }
           );
           const data = await res.json();
 
+          if (data.status === 'CARD_NOT_LINKED') {
+            setPendingCard(normalized);
+            setScanResult(null);
+            setScanStatus('Idle');
+            return;
+          }
+          if (res.ok) setPendingCard('');
           if (data.status === 'ATTENDANCE_MARKED' || data.status === 'VALID') {
             setScanStatus('Student Found');
             playSuccessTing(muted);
@@ -306,21 +324,28 @@ export default function OperationsView({
             status: 'INVALID_TICKET',
             message:
               data.error ??
-              'Invalid ticket for this event. (If scanning a College ID barcode like 19764, switch to the "College ID Scanner" tab above.)',
+              'Invalid ticket for this event. (If scanning a College ID barcode, switch to the "College ID Scanner" tab above.)',
           });
         }
+      } catch {
+        setScanResult({ status: 'INVALID_STUDENT', message: 'Check-in could not be confirmed. Reconnect and scan again.' });
       } finally {
-        setTimeout(() => {
-          processingRef.current = false;
-        }, 1000);
+        processingRef.current = false;
+        setBusy(false);
       }
     },
     [effectiveEventId, loadAttendance, muted, role, scannerMode]
   );
 
+  const cameraSupport = React.useSyncExternalStore(
+    subscribeCameraSupport, getCameraSupport, () => 'checking' as const
+  );
+
   const startCamera = async () => {
+    if (getCameraSupport() !== 'available') return;
     setCameraError(null);
     stopCamera();
+    const session = cameraSession.current;
     setCameraActive(true);
     setScanStatus('Scanning');
 
@@ -357,13 +382,8 @@ export default function OperationsView({
         },
         videoRef.current,
         (result) => {
-          if (result && !processingRef.current) {
+          if (mounted.current && session === cameraSession.current && result && !processingRef.current) {
             const decodedText = result.getText();
-            const formatName = result.getBarcodeFormat();
-            console.log('[ZXing Scanner] Decoded:', {
-              decodedText,
-              format: formatName,
-            });
             stopCamera();
             void handleScanCode(
               decodedText,
@@ -373,15 +393,17 @@ export default function OperationsView({
         }
       );
 
-      controlsRef.current = controls;
+      if (mounted.current && session === cameraSession.current) controlsRef.current = controls;
+      else controls.stop();
     } catch (err) {
+      if (!mounted.current || session !== cameraSession.current) return;
       setCameraActive(false);
       setScanStatus('Idle');
-      setCameraError(
-        err instanceof Error
-          ? `Camera unavailable or permission denied (${err.message}). Use manual entry below.`
-          : 'Camera permission denied. Use manual entry below.'
-      );
+      const name = err instanceof Error ? err.name : '';
+      setCameraError(name === 'NotAllowedError'
+        ? 'Allow camera access in your browser’s site settings, then try again.'
+        : name === 'NotFoundError' ? 'No camera was found. Connect a camera or use a photo.'
+        : 'Could not start the camera. Close other camera apps and try again, or use a photo.');
     }
   };
 
@@ -414,11 +436,11 @@ export default function OperationsView({
   };
 
   return (
-    <div className="py-10 max-w-5xl mx-auto px-6 space-y-8">
+    <div className="work-page py-10 max-w-5xl mx-auto px-6 space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="space-y-1">
           <h1 className="text-3xl font-semibold text-[#4D4D4D]">
-            Organizer & Admin Operations
+            {role === 'college_admin' ? 'Campus operations' : 'Event check-in'}
           </h1>
           <p className="text-sm text-[#717171]">
             QR Event Pass Scanner, College ID Barcode Scanner, and venue
@@ -426,11 +448,7 @@ export default function OperationsView({
           </p>
         </div>
 
-        <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-[#E8F5E9] text-[#4CAF4F] font-medium self-start">
-          <Server className="h-3.5 w-3.5" />
-          Backend:{' '}
-          {dataMode === 'supabase' ? 'Supabase PostgreSQL' : 'Local API Store'}
-        </span>
+
       </div>
 
       {/* Organizer Scanner Card */}
@@ -441,14 +459,16 @@ export default function OperationsView({
             <div className="inline-flex rounded-lg border border-gray-200 bg-[#F5F7FA] p-1 text-xs font-medium self-start">
               <button
                 type="button"
+                disabled={busy || readingPhoto || cameraActive}
                 onClick={() => {
+                  setPendingCard(''); setLastDecodedValue(null); setCameraError(null);
                   setScannerMode('qr_pass');
                   setScanResult(null);
                   setScanStatus(cameraActive ? 'Scanning' : 'Idle');
                 }}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md cursor-pointer transition ${
                   scannerMode === 'qr_pass'
-                    ? 'bg-white text-[#4CAF4F] shadow-xs font-semibold'
+                    ? 'bg-white text-action shadow-xs font-semibold'
                     : 'text-[#717171]'
                 }`}
               >
@@ -457,14 +477,16 @@ export default function OperationsView({
               </button>
               <button
                 type="button"
+                disabled={busy || readingPhoto || cameraActive}
                 onClick={() => {
+                  setPendingCard(''); setLastDecodedValue(null); setCameraError(null);
                   setScannerMode('college_id');
                   setScanResult(null);
                   setScanStatus(cameraActive ? 'Scanning' : 'Idle');
                 }}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md cursor-pointer transition ${
                   scannerMode === 'college_id'
-                    ? 'bg-white text-[#4CAF4F] shadow-xs font-semibold'
+                    ? 'bg-white text-action shadow-xs font-semibold'
                     : 'text-[#717171]'
                 }`}
               >
@@ -475,8 +497,10 @@ export default function OperationsView({
 
             <div className="flex flex-wrap items-center gap-2.5">
               <select
+                aria-label="Check-in event" disabled={busy || readingPhoto || cameraActive}
                 value={effectiveEventId}
                 onChange={(e) => {
+                  setPendingCard(''); setLastDecodedValue(null); setCameraError(null);
                   setSelectedEventId(e.target.value);
                   setScanResult(null);
                 }}
@@ -498,13 +522,13 @@ export default function OperationsView({
                 {muted ? (
                   <VolumeX className="h-4 w-4 text-gray-400" />
                 ) : (
-                  <Volume2 className="h-4 w-4 text-[#4CAF4F]" />
+                  <Volume2 className="h-4 w-4 text-action" />
                 )}
                 <span>{muted ? 'Muted' : 'Sound On'}</span>
               </button>
 
-              <div className="px-3.5 py-2 rounded bg-[#E8F5E9] text-[#263238] text-xs font-semibold flex items-center gap-1.5">
-                <Users className="h-4 w-4 text-[#4CAF4F]" />
+              <div className="px-3.5 py-2 rounded bg-action-tint text-[#263238] text-xs font-semibold flex items-center gap-1.5">
+                <Users className="h-4 w-4 text-action" />
                 <span>
                   Checked In: {attendanceCount}
                   {totalRegistrations > 0 ? ` / ${totalRegistrations}` : ''}
@@ -530,7 +554,7 @@ export default function OperationsView({
                         : scanStatus === 'Barcode Detected'
                         ? 'bg-amber-100 text-amber-800'
                         : scanStatus === 'Student Found'
-                        ? 'bg-[#E8F5E9] text-[#4CAF4F]'
+                        ? 'bg-action-tint text-action'
                         : scanStatus === 'Student Not Found'
                         ? 'bg-rose-100 text-rose-700'
                         : 'bg-gray-200 text-gray-600'
@@ -555,8 +579,8 @@ export default function OperationsView({
                 ) : (
                   <button
                     type="button"
-                    onClick={() => void startCamera()}
-                    className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded bg-[#4CAF4F] hover:bg-[#43A046] text-white font-medium cursor-pointer"
+                    disabled={cameraSupport !== 'available' || busy || readingPhoto || !effectiveEventId} onClick={() => void startCamera()}
+                    className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded bg-action hover:bg-action-hover text-white font-medium cursor-pointer"
                   >
                     <Camera className="h-3.5 w-3.5" />
                     Start Camera
@@ -564,7 +588,7 @@ export default function OperationsView({
                 )}
               </div>
 
-              <div className="relative w-full h-[240px] bg-black/90 rounded border border-gray-300 overflow-hidden flex items-center justify-center">
+              <div hidden={cameraSupport !== 'available'} className="relative w-full h-[240px] bg-black/90 rounded border border-gray-300 overflow-hidden flex items-center justify-center">
                 <video
                   ref={videoRef}
                   className={`w-full h-full object-cover ${
@@ -582,6 +606,12 @@ export default function OperationsView({
                 )}
               </div>
 
+              {cameraSupport === 'insecure' && <p className="text-sm">
+                Live scanning needs HTTPS on this device. On the computer hosting CampusBEE, open{' '}
+                <a className="underline" href={'http://127.0.0.1:' + window.location.port}>local check-in</a> and sign in.
+                On this address, use a photo, USB reader, or manual entry.
+              </p>}
+              {cameraSupport === 'unsupported' && <p>This browser has no camera access. Use a photo, USB reader, or manual entry.</p>}
               {cameraError && (
                 <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2.5">
                   {cameraError}
@@ -589,40 +619,66 @@ export default function OperationsView({
               )}
             </div>
 
-            {/* Manual Fallback & Scan Result UI */}
+            {/* Scan and link the physical ID to the attendee's registered event pass. */}
             <div className="space-y-4">
+              <label className="block rounded-lg border bg-white p-4 text-sm font-semibold">
+                {scannerMode === 'college_id' ? 'Read a card photo' : 'Read a QR pass photo'}
+                <span className="block text-xs font-normal my-1">Choose a clear photo of the barcode. The image stays on this device.</span>
+                <input type="file" accept="image/*" disabled={!effectiveEventId || busy || readingPhoto || cameraActive}
+                  onChange={async e => {
+                    const file = e.currentTarget.files?.[0];
+                    e.currentTarget.value = '';
+                    if (!file) return;
+                    setReadingPhoto(true); setCameraError(null); setPendingCard(''); setScanResult(null);
+                    try { const code = await readCardPhoto(file, scannerMode === 'qr_pass'); if (mounted.current) await handleScanCode(code, scannerMode === 'qr_pass' ? 'qr' : 'barcode'); }
+                    catch { setCameraError('Could not read the barcode. Try a closer photo or enter the printed number.'); }
+                    finally { setReadingPhoto(false); }
+                  }}/>
+                {readingPhoto && <span role="status">Reading barcode…</span>}
+              </label>
+              {pendingCard && <form className="rounded-lg border bg-action-tint p-4 space-y-2" onSubmit={e => {
+                e.preventDefault(); void handleScanCode(pendingCard, 'barcode', 'college_id', linkCode);
+              }}>
+                <h3 className="font-semibold">First visit with this card</h3>
+                <p className="text-sm">Match the person and name on the physical ID with their campusBEE ticket for this event. Linking records attendance now and lets them use the card at future registered events.</p>
+                <label className="block text-sm">Event ticket code
+                  <input required className="block border bg-white p-2 w-full" value={linkCode} onChange={e => setLinkCode(e.target.value)} placeholder="TKT-…"/>
+                </label>
+                <button disabled={busy} className="rounded bg-action text-white py-2 px-3">Link card and check in</button>
+              </form>}
               <form
                 onSubmit={handleManualSubmit}
                 className="bg-[#F5F7FA] border border-gray-200 rounded-lg p-4 space-y-3"
               >
                 <label className="block text-xs font-semibold text-[#4D4D4D]">
                   {scannerMode === 'college_id'
-                    ? 'Manual Barcode / USN Fallback'
+                    ? 'Scan with a USB reader or enter the barcode number'
                     : 'Manual Ticket ID / Token Fallback'}
                 </label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     required
+                    aria-label="Manual check-in code" disabled={busy || readingPhoto || cameraActive}
                     value={manualInput}
                     onChange={(e) => setManualInput(e.target.value)}
                     placeholder={
                       scannerMode === 'college_id'
-                        ? 'e.g., 19764 or 1BY25EC137'
+                        ? 'Number printed below the barcode'
                         : 'e.g., TKT-AI2026 or QR token'
                     }
                     className="flex-1 text-sm bg-white border border-gray-200 rounded px-3 py-2"
                   />
                   <button
                     type="submit"
-                    className="bg-[#4CAF4F] hover:bg-[#43A046] text-white text-xs font-medium px-4 py-2 rounded cursor-pointer"
+                    className="bg-action hover:bg-action-hover text-white text-xs font-medium px-4 py-2 rounded cursor-pointer"
                   >
                     Verify
                   </button>
                 </div>
               </form>
 
-              {lastDecodedValue && (
+              {scannerMode === 'qr_pass' && lastDecodedValue && (
                 <div className="rounded bg-slate-100 border border-gray-200 px-3 py-2 text-xs text-[#4D4D4D] flex items-center justify-between">
                   <span>Last scanned / entered value:</span>
                   <code className="font-mono font-semibold">
@@ -636,7 +692,7 @@ export default function OperationsView({
                   className={`rounded-xl border p-5 space-y-2 text-xs ${
                     scanResult.status === 'VALID' ||
                     scanResult.status === 'ATTENDANCE_MARKED'
-                      ? 'bg-[#E8F5E9] border-[#4CAF4F]/40 text-[#263238]'
+                      ? 'bg-action-tint border-action/40 text-[#263238]'
                       : scanResult.status === 'ALREADY_CHECKED_IN' ||
                         scanResult.status ===
                           'STUDENT_IDENTIFIED_NOT_REGISTERED'
@@ -648,7 +704,7 @@ export default function OperationsView({
                     <div className="flex items-center gap-2 font-bold text-sm">
                       {(scanResult.status === 'VALID' ||
                         scanResult.status === 'ATTENDANCE_MARKED') && (
-                        <CheckCircle2 className="h-5 w-5 text-[#4CAF4F]" />
+                        <CheckCircle2 className="h-5 w-5 text-action" />
                       )}
                       {(scanResult.status === 'ALREADY_CHECKED_IN' ||
                         scanResult.status ===
@@ -686,8 +742,7 @@ export default function OperationsView({
                         )}
                         {scanResult.attendee.department && (
                           <span>
-                            {scanResult.attendee.department} · Year{' '}
-                            {scanResult.attendee.year}
+                            {scanResult.attendee.department}{scanResult.attendee.year ? ' · Year ' + scanResult.attendee.year : ''}
                           </span>
                         )}
                         {scanResult.attendee.ticketCode && (
@@ -763,7 +818,7 @@ export default function OperationsView({
       {/* Venue Inventory */}
       <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
         <h2 className="text-base font-semibold text-[#4D4D4D] flex items-center gap-2">
-          <MapPin className="h-4 w-4 text-[#4CAF4F]" />
+          <MapPin className="h-4 w-4 text-action" />
           Campus Venue Inventory ({venues.length})
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -774,7 +829,7 @@ export default function OperationsView({
             >
               <div className="flex items-center justify-between">
                 <p className="font-semibold text-sm text-[#4D4D4D]">{v.name}</p>
-                <span className="text-xs text-[#4CAF4F] font-medium">
+                <span className="text-xs text-action font-medium">
                   Cap {v.capacity}
                 </span>
               </div>
@@ -816,7 +871,7 @@ export default function OperationsView({
             />
             <button
               type="submit"
-              className="inline-flex items-center justify-center gap-1 bg-[#4CAF4F] hover:bg-[#43A046] text-white text-xs font-medium px-3 py-2 rounded cursor-pointer"
+              className="inline-flex items-center justify-center gap-1 bg-action hover:bg-action-hover text-white text-xs font-medium px-3 py-2 rounded cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
               Add Venue

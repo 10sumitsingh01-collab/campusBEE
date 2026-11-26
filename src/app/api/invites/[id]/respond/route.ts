@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { acceptTeamInvite } from '@/lib/registration/teamRules';
+import { createOpaquePassCodes, registrationSummary, issueCampusTicket } from '@/lib/server/eventTicket';
+import { acceptTeamInvite, checkStudentEligibility } from '@/lib/registration/teamRules';
 import {
   forbiddenResponse,
   getRequestUser,
   requireRole,
   unauthorizedResponse,
 } from '@/lib/server/authGuard';
-import { getDataMode, getStore } from '@/lib/server/store';
+import { getDataMode, getStore, saveDemoStore } from '@/lib/server/store';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 export async function POST(
@@ -76,6 +77,8 @@ export async function POST(
       );
     }
 
+    const prior = await supabase.from('registrations').select('id').eq('event_id',invite.event_id).eq('user_id',user.id).eq('status','registered').maybeSingle();
+    if (prior.error || prior.data) return NextResponse.json({error:'Unable to accept: check your existing registration.'},{status:409});
     // Enforce: student can be an accepted member of only one team per event
     const { data: existingMember } = await supabase
       .from('team_members')
@@ -92,33 +95,10 @@ export async function POST(
       );
     }
 
-    const { error: memberErr } = await supabase.from('team_members').insert({
-      team_id: invite.team_id,
-      event_id: invite.event_id,
-      user_id: user.id,
-      role: 'member',
-      status: 'accepted',
-    });
-
-    if (memberErr) {
-      return NextResponse.json({ error: memberErr.message }, { status: 400 });
-    }
-
-    await supabase.from('registrations').upsert(
-      {
-        event_id: invite.event_id,
-        user_id: user.id,
-        team_id: invite.team_id,
-        registration_type: 'team',
-        status: 'registered',
-      },
-      { onConflict: 'event_id,user_id' }
-    );
-
-    await supabase
-      .from('team_invites')
-      .update({ status: 'accepted' })
-      .eq('id', inviteId);
+    const {ticketCode,qrToken} = createOpaquePassCodes();
+    const {error} = await supabase.rpc('register_event_participant',{p_event:invite.event_id,p_kind:'team',
+      p_team_name:'',p_contact:{name:user.name},p_ticket:ticketCode,p_qr:qrToken,p_invite:inviteId});
+    if (error) return NextResponse.json({error:error.message},{status:409});
 
     // Cancel other pending invites for the same event
     await supabase
@@ -150,21 +130,39 @@ export async function POST(
     return forbiddenResponse('This invite belongs to another student.');
   }
 
+  if (invite.status !== 'pending') {
+    return NextResponse.json({ error: 'This invite has already been answered.' }, { status: 409 });
+  }
+
   if (body.action === 'decline') {
     invite.status = 'declined';
+    saveDemoStore(store);
     return NextResponse.json({ invite });
   }
 
+  const event = store.events.find(e => e.id === invite.eventId);
+  const team = store.teams.find(t => t.id === invite.teamId);
+  if (!event || event.status !== 'published' || !team || team.status === 'locked' || team.members.length >= event.maxTeamSize) {
+    return NextResponse.json({ error: 'This team is no longer accepting members.' }, { status: 409 });
+  }
+  const eligibility = checkStudentEligibility(user, event);
+  if (!eligibility.eligible) return NextResponse.json({ error: eligibility.reason }, { status: 400 });
+  if (store.tickets.some(t => t.eventId === event.id && t.userId === user.id && t.status === 'registered'))
+    return NextResponse.json({error:'You already have a role in this event.'},{status:409});
+  if (registrationSummary(store,event).remaining === 0) return NextResponse.json({error:'This event is full.'},{status:409});
   const res = acceptTeamInvite(inviteId, user, store.teams, store.invites);
   store.teams = res.teams;
   store.invites = res.invites;
 
   if (res.error) {
+    saveDemoStore(store);
     return NextResponse.json({ error: res.error }, { status: 400 });
   }
 
-  const ev = store.events.find((e) => e.id === invite.eventId);
-  if (ev) ev.registrationsCount += 1;
+  const venue = store.venues.find(v => v.id === event.venueId);
+  store.tickets.push(issueCampusTicket(event, venue, user, team.id));
+  event.registrationsCount += 1;
+  saveDemoStore(store);
 
   return NextResponse.json({
     teams: store.teams.filter((t) =>

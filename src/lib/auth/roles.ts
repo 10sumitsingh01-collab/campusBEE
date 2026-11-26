@@ -57,17 +57,19 @@ export const ROLE_PERMISSIONS: Record<
 };
 
 export const MAIN_NAVIGATION: NavItem[] = [
+  {label:'Judging Management',href:'#judging',section:'judging',roles:['club_organizer']},
   {
     label: 'Home',
     href: '#home',
     section: 'home',
     roles: ['student', 'club_organizer', 'judge', 'college_admin'],
   },
+  { label: 'Campus calendar', href: '#calendar', section: 'calendar', roles: ['student', 'club_organizer', 'judge', 'college_admin'] },
   {
     label: 'Explore Events',
     href: '#events',
     section: 'events',
-    roles: ['student', 'club_organizer', 'judge', 'college_admin'],
+    roles: ['student', 'club_organizer', 'judge'],
   },
   {
     label: 'Clubs',
@@ -97,22 +99,22 @@ export const MAIN_NAVIGATION: NavItem[] = [
     label: 'Certificates',
     href: '#certificates',
     section: 'certificates',
-    roles: ['student', 'college_admin'],
+    roles: ['student'],
   },
   {
     label: 'Crew Sync AI',
     href: '#crew-sync',
     section: 'crew-sync',
-    roles: ['club_organizer', 'college_admin'],
+    roles: ['student', 'club_organizer', 'college_admin'],
   },
   {
     label: 'Organizer / Admin',
     href: '#operations',
     section: 'operations',
-    roles: ['club_organizer', 'judge', 'college_admin'],
+    roles: ['club_organizer', 'college_admin'],
   },
 ];
 
-export function canAccessCrewSync(role: UserRole): boolean {
+export function canManageEvents(role: UserRole): boolean {
   return role === 'club_organizer' || role === 'college_admin';
 }

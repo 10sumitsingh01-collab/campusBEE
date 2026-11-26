@@ -1,3 +1,4 @@
+import { saveDemoStore } from '@/lib/server/store';
 import { NextRequest, NextResponse } from 'next/server';
 import { checkCandidateEventClashes } from '@/lib/coordination/clashCheck';
 import {
@@ -71,7 +72,7 @@ export async function GET(request: NextRequest) {
 
   const store = getStore();
   const events = store.events.filter((ev) => {
-    if (ev.status === 'draft' && !canManageClub(user, ev.clubId)) return false;
+    if (['draft','pending_approval'].includes(ev.status) && !canManageClub(user, ev.clubId)) return false;
     if (type && ev.eventType !== type) return false;
     if (clubId && ev.clubId !== clubId) return false;
     if (status && ev.status !== status) return false;
@@ -93,7 +94,10 @@ export async function POST(request: NextRequest) {
   const roleError = requireRole(user, ['club_organizer', 'college_admin']);
   if (roleError || !user) return roleError ?? unauthorizedResponse();
 
-  const body = (await request.json()) as Partial<CampusEvent>;
+  const body = (await request.json()) as Partial<CampusEvent> & { reserveVenue?: boolean };
+  if (user.role === 'club_organizer' && body.status && body.status !== 'draft') {
+    body.status = 'pending_approval';
+  }
   if (!body.title?.trim() || !body.clubId || !body.startTime || !body.endTime) {
     return NextResponse.json(
       { error: 'title, clubId, startTime, and endTime are required.' },
@@ -101,7 +105,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (new Date(body.endTime).getTime() <= new Date(body.startTime).getTime()) {
+  if (!Number.isFinite(Date.parse(body.startTime)) || !Number.isFinite(Date.parse(body.endTime)) || new Date(body.endTime).getTime() <= new Date(body.startTime).getTime()) {
     return NextResponse.json(
       { error: 'endTime must be after startTime.' },
       { status: 400 }
@@ -112,6 +116,15 @@ export async function POST(request: NextRequest) {
     const supabase = await createServerSupabaseClient();
     if (!supabase) return unauthorizedResponse();
 
+    if (body.reserveVenue && body.status !== 'draft') {
+      if (!body.venueId) return NextResponse.json({error:'Choose an available venue.'}, {status:400});
+      const check = await supabase.rpc('detect_venue_clashes', {
+        p_event_id: null, p_venue_id: body.venueId, p_start_time: body.startTime, p_end_time: body.endTime,
+        p_setup_minutes: body.setupBufferMinutes ?? 30, p_teardown_minutes: body.teardownBufferMinutes ?? 30,
+      });
+      if (check.error) return NextResponse.json({error:'Could not verify room availability.'}, {status:503});
+      if (check.data?.length) return NextResponse.json({error:'This room was booked. Review the updated suggestions.'}, {status:409});
+    }
     const { data: inserted, error } = await supabase
       .from('events')
       .insert({
@@ -215,7 +228,17 @@ export async function POST(request: NextRequest) {
     store.events,
     store.venues
   );
+  if (body.reserveVenue && newEvent.status !== 'draft') {
+    if (!store.venues.some(v => v.id === newEvent.venueId)) return NextResponse.json({error:'Choose an available venue.'}, {status:400});
+    if (clashes.length) return NextResponse.json({error:'This room was booked. Review the updated room and date suggestions.', clashes}, {status:409});
+  }
   store.events.push(newEvent);
+  store.rubrics.push({
+    id: generateId('rub'), eventId: newEvent.id, name: 'Overall project score',
+    description: 'Quality of execution, impact, and presentation.',
+    maxScore: 100, weight: 1, sortOrder: 1,
+  });
 
+  saveDemoStore(store);
   return NextResponse.json({ event: newEvent, clashes }, { status: 201 });
 }

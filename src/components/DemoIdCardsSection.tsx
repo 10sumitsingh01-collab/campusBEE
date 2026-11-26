@@ -5,7 +5,7 @@ import JsBarcode from 'jsbarcode';
 import { Printer, ScanLine } from 'lucide-react';
 import { CollegeIdCard } from '@/types/domain';
 
-function BarcodeSvg({ value }: { value: string }) {
+export function BarcodeSvg({ value }: { value: string }) {
   const svgRef = useRef<SVGSVGElement | null>(null);
 
   useEffect(() => {
@@ -41,10 +41,10 @@ export default function DemoIdCardsSection({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-[#4D4D4D]">
-            Demo College ID Cards (CODE_128)
+            Check-in practice cards
           </h3>
           <p className="text-xs text-[#717171]">
-            Fictional demo records for live testing. Scan with camera, print, or
+            Scan a barcode with the camera, print the cards, or
             click Test Scan.
           </p>
         </div>
@@ -54,7 +54,7 @@ export default function DemoIdCardsSection({
           className="inline-flex items-center gap-1.5 text-xs px-3.5 py-2 rounded border border-gray-200 text-[#4D4D4D] hover:bg-gray-50 font-medium cursor-pointer self-start"
         >
           <Printer className="h-3.5 w-3.5" />
-          Print Demo IDs
+          Print cards
         </button>
       </div>
 
@@ -66,10 +66,10 @@ export default function DemoIdCardsSection({
           >
             <div className="bg-[#1C4980] text-white px-4 py-2.5 flex items-center justify-between">
               <span className="text-xs font-bold tracking-tight">
-                CampusOS ID
+                campusBEE ID
               </span>
               <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-white/15">
-                Demo
+                Check-in practice
               </span>
             </div>
 
@@ -107,7 +107,7 @@ export default function DemoIdCardsSection({
                 <button
                   type="button"
                   onClick={() => onQuickTestScan(card.barcodeToken!)}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#4CAF4F] hover:underline cursor-pointer"
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-action hover:underline cursor-pointer"
                 >
                   <ScanLine className="h-3 w-3" />
                   Test Scan

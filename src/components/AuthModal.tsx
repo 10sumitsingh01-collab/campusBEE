@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import BeeLogo from './BeeLogo';
+
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowRight, Eye, EyeOff, Ticket, X } from 'lucide-react';
 import { ROLE_LABELS } from '@/lib/auth/roles';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, isMockMode } from '@/lib/supabase/client';
 import { CampusEvent, UserRole } from '@/types/domain';
 
 const ROLE_OPTIONS: { value: UserRole; label: string; hint: string }[] = [
@@ -22,6 +24,7 @@ const ROLE_OPTIONS: { value: UserRole; label: string; hint: string }[] = [
 ];
 
 interface AuthModalProps {
+  initialRole?: UserRole;
   initialMode?: 'signup' | 'signin';
   selectedEvent?: CampusEvent | null;
   onClose: () => void;
@@ -29,6 +32,7 @@ interface AuthModalProps {
 }
 
 export default function AuthModal({
+  initialRole = 'student',
   initialMode = 'signup',
   selectedEvent,
   onClose,
@@ -39,23 +43,49 @@ export default function AuthModal({
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [department, setDepartment] = useState('Computer Science');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('student');
+  const [selectedRole, setSelectedRole] = useState<UserRole>(initialRole);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [clubName, setClubName] = useState('');
+  const mockMode = isMockMode();
+
+  useEffect(() => {
+    const element = dialog.current;
+    element?.showModal();
+    return () => element?.close();
+  }, []);
+
+  function changeMode(nextMode: 'signin' | 'signup') {
+    setMode(nextMode);
+    setStatusMessage(null);
+    setShowPassword(false);
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatusMessage(null);
     setLoading(true);
 
-    const supabase = createClient();
+    try {
+      if (mockMode) {
+        const response = await fetch('/api/auth/session', { method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode, email, password, name, department, role: selectedRole, clubName }),
+        });
+        const data = await response.json();
+        if (response.ok) onAuthenticated(data.user.role);
+        else setStatusMessage(data.error);
+        return;
+      }
+      const supabase = createClient();
     if (!supabase) {
       setStatusMessage('Supabase client is not configured in .env.local.');
       setLoading(false);
       return;
     }
 
-    try {
       if (mode === 'signup') {
         const { data, error } = await supabase.auth.signUp({
           email,
@@ -129,184 +159,113 @@ export default function AuthModal({
 
         onAuthenticated(rememberedRole);
       }
+    } catch {
+      setStatusMessage('Could not connect. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-[2px] flex items-center justify-center p-4">
-      <div className="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-7 shadow-2xl space-y-5 relative">
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 text-gray-400 hover:text-gray-700 p-1 cursor-pointer"
-          aria-label="Close sign up modal"
-        >
-          <X className="h-5 w-5" />
-        </button>
-
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-lg font-extrabold tracking-tight text-[#1C4980]">
-              Campus<span className="text-[#0073E6]">OS</span>
-            </span>
+    <dialog
+      ref={dialog}
+      className="crew-auth-dialog"
+      aria-labelledby="auth-title"
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+    >
+      <div className="crew-auth-layout">
+        <aside className="crew-auth-hero" aria-label="campusBEE">
+          <div className="crew-auth-brand"><BeeLogo/> campusBEE</div>
+          <div className="crew-auth-hero-copy">
+            <p className="crew-auth-headline">Your campus<br />workspace.</p>
+            <p className="crew-auth-description">Join events, host with your club or review submissions from your role’s workspace.</p>
           </div>
-          <h2 className="text-xl font-bold text-[#1C4980]">
-            {mode === 'signup'
-              ? selectedEvent
-                ? `Continue to ${selectedEvent.title}`
-                : 'Create your CampusOS account'
-              : 'Welcome back'}
-          </h2>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {mode === 'signup'
-              ? 'Select your role to continue'
-              : 'Sign in with your registered college email'}
+          <div className="crew-auth-ticket" aria-hidden="true">
+            <Ticket size={27} />
+            <span />
+            <span />
+            <span />
+          </div>
+        </aside>
+
+        <section className="crew-auth-panel">
+          <button type="button" onClick={onClose} className="crew-auth-close" aria-label="Close account dialog">
+            <X size={20} />
+          </button>
+
+            <div className="crew-auth-switcher" aria-label="Account options">
+              <button type="button" disabled={loading} aria-pressed={mode === 'signin'} onClick={() => changeMode('signin')}>Sign in</button>
+              <button type="button" disabled={loading} aria-pressed={mode === 'signup'} onClick={() => changeMode('signup')}>Create account</button>
+            </div>
+
+          <h1 id="auth-title">{mode === 'signin' ? 'Welcome back.' : 'Join campusBEE.'}</h1>
+          <p className="crew-auth-intro">
+            {selectedEvent
+              ? `Continue to ${selectedEvent.title} with your campus account.`
+              : mode === 'signin'
+                ? 'Sign in with your registered college email.'
+                : 'Set up your account to get involved on campus.'}
           </p>
-        </div>
 
-        {/* Mode Tabs */}
-        <div className="grid grid-cols-2 bg-gray-100 p-1 rounded-lg text-xs font-semibold">
-          <button
-            type="button"
-            onClick={() => {
-              setMode('signup');
-              setStatusMessage(null);
-            }}
-            className={`py-2 rounded-md transition cursor-pointer ${
-              mode === 'signup'
-                ? 'bg-white text-[#0073E6] shadow-xs'
-                : 'text-gray-600'
-            }`}
-          >
-            Sign Up
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('signin');
-              setStatusMessage(null);
-            }}
-            className={`py-2 rounded-md transition cursor-pointer ${
-              mode === 'signin'
-                ? 'bg-white text-[#0073E6] shadow-xs'
-                : 'text-gray-600'
-            }`}
-          >
-            Sign In
-          </button>
-        </div>
+            <form onSubmit={handleSubmit} className="crew-auth-form">
+              {mode === 'signup' && (
+                <>
+                  <fieldset>
+                    <legend>Your role</legend>
+                    <div className="crew-auth-roles">
+                      {ROLE_OPTIONS.map((option) => (
+                        <label key={option.value}>
+                          <input type="radio" name="role" value={option.value} checked={selectedRole === option.value} onChange={() => setSelectedRole(option.value)} />
+                          <span><strong>{option.label}</strong><small>{option.hint}</small></span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  {mockMode && selectedRole === 'club_organizer' && <label>Your new club name<input required value={clubName} onChange={e => setClubName(e.target.value)} /></label>}
+                  <div className="crew-auth-fields">
+                    <label>Full name
+                      <input type="text" autoComplete="name" required value={name} onChange={(event) => setName(event.target.value)} />
+                    </label>
+                    <label>Department
+                      <input type="text" autoComplete="organization-title" required value={department} onChange={(event) => setDepartment(event.target.value)} />
+                    </label>
+                  </div>
+                </>
+              )}
 
-        <form onSubmit={handleSubmit} className="space-y-3.5">
-          {mode === 'signup' && (
-            <>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                  Select Your Role
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {ROLE_OPTIONS.map((opt) => {
-                    const active = selectedRole === opt.value;
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => setSelectedRole(opt.value)}
-                        className={`text-left p-2.5 rounded-xl border transition cursor-pointer ${
-                          active
-                            ? 'bg-[#EBF4FF] border-[#0073E6] text-[#1C4980]'
-                            : 'bg-gray-50 border-gray-200 text-gray-700 hover:border-gray-300'
-                        }`}
-                      >
-                        <p className="text-xs font-semibold">{opt.label}</p>
-                        <p className="text-[11px] text-gray-500 leading-tight mt-0.5">
-                          {opt.hint}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
+              <label>College email
+                <input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@campus.edu" />
+              </label>
+              <label htmlFor="auth-password">Password</label>
+              <div className="crew-auth-password">
+                <input
+                  id="auth-password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                  required
+                  minLength={mockMode ? 8 : 6}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder={mode === 'signup' ? (mockMode ? 'At least 8 characters' : 'At least 6 characters') : 'Enter your password'}
+                />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Aarav Sharma"
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-[#0073E6]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Department
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-[#0073E6]"
-                  />
-                </div>
-              </div>
-            </>
-          )}
+              {statusMessage && <p className="crew-auth-status" role="status">{statusMessage}</p>}
 
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              College Email
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@campus.edu"
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-[#0073E6]"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Minimum 6 characters"
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-[#0073E6]"
-            />
-          </div>
-
-          {statusMessage && (
-            <p className="text-xs text-gray-700 bg-blue-50 border border-blue-200 rounded-lg p-3">
-              {statusMessage}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[#0073E6] hover:bg-[#0060C2] disabled:opacity-60 text-white text-sm font-semibold py-2.5 rounded-full transition cursor-pointer"
-          >
-            {loading
-              ? 'Please wait...'
-              : mode === 'signup'
-              ? `Continue as ${ROLE_LABELS[selectedRole]}`
-              : 'Sign In & Continue'}
-          </button>
-        </form>
+              <button type="submit" disabled={loading} className="crew-auth-primary">
+                {loading ? 'Please wait…' : mode === 'signup' ? `Continue as ${ROLE_LABELS[selectedRole]}` : 'Sign in'}
+                <ArrowRight size={18} />
+              </button>
+            </form>
+        </section>
       </div>
-    </div>
+    </dialog>
   );
 }

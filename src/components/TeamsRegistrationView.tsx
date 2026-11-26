@@ -22,6 +22,9 @@ import {
 } from '@/types/domain';
 
 interface TeamsRegistrationViewProps {
+  initialEventId?: string;
+  initialRole: 'contestant'|'volunteer';
+  onRegistered: () => void;
   student: UserProfile;
   events: CampusEvent[];
   teams: Team[];
@@ -32,6 +35,7 @@ interface TeamsRegistrationViewProps {
 }
 
 export default function TeamsRegistrationView({
+  initialEventId, initialRole, onRegistered,
   student,
   events,
   teams,
@@ -40,10 +44,9 @@ export default function TeamsRegistrationView({
   onUpdateInvites,
   onOpenTickets,
 }: TeamsRegistrationViewProps) {
-  const [selectedEventId, setSelectedEventId] = useState(events[0]?.id ?? '');
+  const [selectedEventId, setSelectedEventId] = useState(events.find(event => event.id === initialEventId)?.id ?? events[0]?.id ?? '');
+  const [eventRole,setEventRole] = useState(initialRole);
   const [newTeamName, setNewTeamName] = useState('');
-  const [attendeeName, setAttendeeName] = useState(student.name);
-  const [attendeeEmail, setAttendeeEmail] = useState(student.email);
   const [phone, setPhone] = useState('');
   const [college, setCollege] = useState('Campus Institute of Technology');
   const [trackNote, setTrackNote] = useState('');
@@ -78,9 +81,9 @@ export default function TeamsRegistrationView({
         'x-demo-role': 'student',
       },
       body: JSON.stringify({
-        teamName: newTeamName.trim(),
-        attendeeName: attendeeName.trim(),
-        attendeeEmail: attendeeEmail.trim(),
+        eventRole, teamName: newTeamName.trim(),
+        attendeeName: student.name,
+        attendeeEmail: student.email,
         phone: phone.trim(),
         college: college.trim(),
         customFields: trackNote.trim() ? { track: trackNote.trim() } : {},
@@ -92,7 +95,8 @@ export default function TeamsRegistrationView({
       return;
     }
 
-    onUpdateTeams([...teams, data.team]);
+    if (data.team) onUpdateTeams([...teams, data.team]);
+    onRegistered();
     setNewTeamName('');
     setGeneratedTicketCode(data.ticket?.ticketCode ?? null);
     setFeedback(
@@ -117,7 +121,7 @@ export default function TeamsRegistrationView({
       return;
     }
     const localRes = acceptTeamInvite(inviteId, student, teams, invites);
-    onUpdateTeams(localRes.teams);
+    onUpdateTeams(data.teams ?? localRes.teams);
     onUpdateInvites(data.invites ?? localRes.invites);
     setFeedback(
       'Invite accepted! Any competing invites for the same event were cancelled.'
@@ -183,7 +187,7 @@ export default function TeamsRegistrationView({
   const selectedEvent = getEvent(selectedEventId);
 
   return (
-    <div className="py-10 max-w-5xl mx-auto px-6 space-y-8">
+    <div className="work-page py-10 max-w-5xl mx-auto px-6 space-y-8">
       <div className="space-y-1">
         <h1 className="text-3xl font-semibold text-[#4D4D4D]">
           My Teams & Registrations
@@ -195,16 +199,16 @@ export default function TeamsRegistrationView({
       </div>
 
       {feedback && (
-        <div className="rounded-lg bg-[#E8F5E9] border border-[#4CAF4F]/30 px-4 py-3 text-xs font-medium text-[#263238] flex items-center justify-between gap-2">
+        <div className="rounded-lg bg-action-tint border border-action/30 px-4 py-3 text-xs font-medium text-[#263238] flex items-center justify-between gap-2">
           <span className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-[#4CAF4F] shrink-0" />
+            <CheckCircle2 className="h-4 w-4 text-action shrink-0" />
             <span>{feedback}</span>
           </span>
           {generatedTicketCode && onOpenTickets && (
             <button
               type="button"
               onClick={onOpenTickets}
-              className="px-3 py-1 rounded bg-[#4CAF4F] text-white text-xs font-semibold cursor-pointer"
+              className="px-3 py-1 rounded bg-action text-white text-xs font-semibold cursor-pointer"
             >
               View My Ticket →
             </button>
@@ -218,19 +222,23 @@ export default function TeamsRegistrationView({
         className="bg-white border border-gray-200 rounded-lg p-6 space-y-4"
       >
         <h2 className="text-base font-semibold text-[#4D4D4D] flex items-center gap-2">
-          <Plus className="h-4 w-4 text-[#4CAF4F]" />
+          <Plus className="h-4 w-4 text-action" />
           Register & Generate QR Pass
         </h2>
 
+        <fieldset><legend className="font-semibold">Your role for this event</legend><div className="flex gap-4 py-2">
+          {(['contestant','volunteer'] as const).map(r => <label key={r}><input type="radio" name="event-role" checked={(selectedEvent?.myEventRole ?? eventRole)===r}
+            disabled={!!selectedEvent?.myEventRole} onChange={() => setEventRole(r)}/> {r==='contestant' ? 'Contestant' : 'Volunteer'}</label>)}
+        </div></fieldset>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-medium text-[#4D4D4D] mb-1">
+            <label htmlFor="register-select-event" className="block text-xs font-medium text-[#4D4D4D] mb-1">
               Select Event
             </label>
-            <select
+            <select id="register-select-event"
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded px-3 py-2 bg-white focus:outline-none focus:border-[#4CAF4F]"
+              className="w-full text-sm border border-gray-200 rounded px-3 py-2 bg-white focus:outline-none focus:border-action"
             >
               {events
                 .filter((e) => e.status === 'published')
@@ -243,82 +251,82 @@ export default function TeamsRegistrationView({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-[#4D4D4D] mb-1">
+            <label htmlFor="register-full-name" className="block text-xs font-medium text-[#4D4D4D] mb-1">
               Full Name
             </label>
-            <input
+            <input id="register-full-name"
               type="text"
               required
-              value={attendeeName}
-              onChange={(e) => setAttendeeName(e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded px-3 py-2 focus:outline-none focus:border-[#4CAF4F]"
+              value={student.name}
+              readOnly
+              className="w-full text-sm border border-gray-200 rounded px-3 py-2 focus:outline-none focus:border-action"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-[#4D4D4D] mb-1">
+            <label htmlFor="register-email" className="block text-xs font-medium text-[#4D4D4D] mb-1">
               Email
             </label>
-            <input
+            <input id="register-email"
               type="email"
               required
-              value={attendeeEmail}
-              onChange={(e) => setAttendeeEmail(e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded px-3 py-2 focus:outline-none focus:border-[#4CAF4F]"
+              value={student.email}
+              readOnly
+              className="w-full text-sm border border-gray-200 rounded px-3 py-2 focus:outline-none focus:border-action"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-[#4D4D4D] mb-1">
+            <label htmlFor="register-phone-number" className="block text-xs font-medium text-[#4D4D4D] mb-1">
               Phone Number
             </label>
-            <input
+            <input id="register-phone-number"
               type="tel"
               required
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="+91 98765 43210"
-              className="w-full text-sm border border-gray-200 rounded px-3 py-2 focus:outline-none focus:border-[#4CAF4F]"
+              className="w-full text-sm border border-gray-200 rounded px-3 py-2 focus:outline-none focus:border-action"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-[#4D4D4D] mb-1">
+            <label htmlFor="register-college-institution" className="block text-xs font-medium text-[#4D4D4D] mb-1">
               College / Institution
             </label>
-            <input
+            <input id="register-college-institution"
               type="text"
               required
               value={college}
               onChange={(e) => setCollege(e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded px-3 py-2 focus:outline-none focus:border-[#4CAF4F]"
+              className="w-full text-sm border border-gray-200 rounded px-3 py-2 focus:outline-none focus:border-action"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-[#4D4D4D] mb-1">
+            <label htmlFor="register-track-event-specific-note" className="block text-xs font-medium text-[#4D4D4D] mb-1">
               Track / Event-Specific Note
             </label>
-            <input
+            <input id="register-track-event-specific-note"
               type="text"
               value={trackNote}
               onChange={(e) => setTrackNote(e.target.value)}
               placeholder="e.g., AI Track / Vegetarian"
-              className="w-full text-sm border border-gray-200 rounded px-3 py-2 focus:outline-none focus:border-[#4CAF4F]"
+              className="w-full text-sm border border-gray-200 rounded px-3 py-2 focus:outline-none focus:border-action"
             />
           </div>
 
-          {selectedEvent && selectedEvent.maxTeamSize > 1 && (
+          {!selectedEvent?.myEventRole && eventRole === 'contestant' && selectedEvent && selectedEvent.maxTeamSize > 1 && (
             <div>
-              <label className="block text-xs font-medium text-[#4D4D4D] mb-1">
+              <label htmlFor="register-team-name" className="block text-xs font-medium text-[#4D4D4D] mb-1">
                 Team Name
               </label>
-              <input
+              <input id="register-team-name"
                 type="text"
                 value={newTeamName}
                 onChange={(e) => setNewTeamName(e.target.value)}
                 placeholder="e.g., Campus Builders"
-                className="w-full text-sm border border-gray-200 rounded px-3 py-2 focus:outline-none focus:border-[#4CAF4F]"
+                className="w-full text-sm border border-gray-200 rounded px-3 py-2 focus:outline-none focus:border-action"
               />
             </div>
           )}
@@ -326,9 +334,10 @@ export default function TeamsRegistrationView({
           <div className="flex items-end">
             <button
               type="submit"
-              className="w-full md:w-auto bg-[#4CAF4F] hover:bg-[#43A046] text-white text-sm font-medium px-5 py-2 rounded transition cursor-pointer"
+              disabled={!!selectedEvent?.myEventRole || selectedEvent?.registrationSummary?.remaining===0}
+              className="disabled:opacity-60 w-full md:w-auto bg-action hover:bg-action-hover text-white text-sm font-medium px-5 py-2 rounded transition cursor-pointer"
             >
-              {selectedEvent?.maxTeamSize === 1
+              {selectedEvent?.myEventRole ? 'Registered as '+selectedEvent.myEventRole : selectedEvent?.registrationSummary?.remaining===0 ? 'Event full' : eventRole==='volunteer' ? 'Register as volunteer & get pass' : selectedEvent?.maxTeamSize === 1
                 ? 'Register Solo & Get Pass'
                 : 'Register Team & Get Pass'}
             </button>
@@ -339,7 +348,7 @@ export default function TeamsRegistrationView({
       {/* Incoming Invites */}
       <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
         <h2 className="text-base font-semibold text-[#4D4D4D] flex items-center gap-2">
-          <Mail className="h-4 w-4 text-[#4CAF4F]" />
+          <Mail className="h-4 w-4 text-action" />
           Team Invitations
         </h2>
 
@@ -370,7 +379,7 @@ export default function TeamsRegistrationView({
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleAcceptInvite(inv.id)}
-                        className="text-xs px-3 py-1.5 rounded bg-[#4CAF4F] hover:bg-[#43A046] text-white font-medium cursor-pointer"
+                        className="text-xs px-3 py-1.5 rounded bg-action hover:bg-action-hover text-white font-medium cursor-pointer"
                       >
                         Accept
                       </button>
@@ -384,7 +393,7 @@ export default function TeamsRegistrationView({
                   ) : (
                     <span className="inline-flex items-center gap-1 text-xs text-[#717171] capitalize">
                       {inv.status === 'accepted' ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 text-[#4CAF4F]" />
+                        <CheckCircle2 className="h-3.5 w-3.5 text-action" />
                       ) : (
                         <XCircle className="h-3.5 w-3.5 text-gray-400" />
                       )}
@@ -401,7 +410,7 @@ export default function TeamsRegistrationView({
       {/* My Teams */}
       <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
         <h2 className="text-base font-semibold text-[#4D4D4D] flex items-center gap-2">
-          <Users className="h-4 w-4 text-[#4CAF4F]" />
+          <Users className="h-4 w-4 text-action" />
           My Active Teams ({myTeams.length})
         </h2>
 
@@ -435,7 +444,7 @@ export default function TeamsRegistrationView({
                     <span
                       className={`text-xs px-2.5 py-1 rounded font-medium capitalize ${
                         team.status === 'locked'
-                          ? 'bg-[#E8F5E9] text-[#4CAF4F]'
+                          ? 'bg-action-tint text-action'
                           : 'bg-amber-50 text-amber-800 border border-amber-200'
                       }`}
                     >
@@ -462,12 +471,12 @@ export default function TeamsRegistrationView({
                           value={inviteEmail}
                           onChange={(e) => setInviteEmail(e.target.value)}
                           placeholder="Teammate college email..."
-                          className="text-xs bg-white border border-gray-200 rounded px-3 py-1.5 focus:outline-none focus:border-[#4CAF4F]"
+                          className="text-xs bg-white border border-gray-200 rounded px-3 py-1.5 focus:outline-none focus:border-action"
                         />
                         <button
                           type="button"
                           onClick={() => handleSendInvite(team)}
-                          className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded bg-white border border-gray-300 text-[#4D4D4D] hover:border-[#4CAF4F] cursor-pointer"
+                          className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded bg-white border border-gray-300 text-[#4D4D4D] hover:border-action cursor-pointer"
                         >
                           <UserPlus className="h-3.5 w-3.5" />
                           Invite
@@ -477,7 +486,7 @@ export default function TeamsRegistrationView({
                       <button
                         type="button"
                         onClick={() => handleLockTeam(team)}
-                        className="inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded bg-[#4CAF4F] hover:bg-[#43A046] text-white font-medium cursor-pointer"
+                        className="inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded bg-action hover:bg-action-hover text-white font-medium cursor-pointer"
                         title={lockCheck.reason}
                       >
                         <Lock className="h-3.5 w-3.5" />

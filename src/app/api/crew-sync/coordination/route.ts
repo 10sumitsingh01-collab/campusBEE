@@ -8,7 +8,7 @@ import {
   requireRole,
   unauthorizedResponse,
 } from '@/lib/server/authGuard';
-import { generateId, getDataMode, getStore } from '@/lib/server/store';
+import { generateId, getDataMode, getStore, saveDemoStore } from '@/lib/server/store';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { AIRecommendation, CampusEvent, Club, Venue } from '@/types/domain';
 
@@ -95,7 +95,10 @@ export async function POST(request: NextRequest) {
     venues = store.venues;
   }
 
-  const venueClashes = detectVenueClashes(events, venues);
+  const managedClubs = user.role === 'club_organizer'
+    ? new Set([...clubs.filter(c => c.ownerId === user.id).map(c => c.id), ...(user.managedClubIds ?? [])])
+    : undefined;
+  const venueClashes = detectVenueClashes(events, venues, managedClubs);
   const audienceClashes = detectAudienceClashes(events);
 
   const createdRecommendations: AIRecommendation[] = venueClashes.map((c) => {
@@ -117,7 +120,9 @@ export async function POST(request: NextRequest) {
       priority: 'critical',
       status: 'pending_review',
       createdByAgent: 'Event Coordination Agent',
-      suggestedActionLabel: altNames[0] ? `Move to ${altNames[0]}` : undefined,
+      scheduleChange: c.alternateVenues[0] ? { venueId: c.alternateVenues[0].id }
+        : c.alternateTimeSlots[0] ? { startTime: c.alternateTimeSlots[0].startTime, endTime: c.alternateTimeSlots[0].endTime } : undefined,
+      suggestedActionLabel: altNames[0] ? `Move to ${altNames[0]}` : slotLabels[0] ? `Reschedule to ${slotLabels[0]}` : undefined,
       createdAt: new Date().toISOString(),
     };
   });
@@ -148,11 +153,19 @@ export async function POST(request: NextRequest) {
     }
   } else if (mode === 'local_seed') {
     const store = getStore();
-    for (const r of createdRecommendations) {
-      if (!store.recommendations.some((ex) => ex.title === r.title && ex.eventId === r.eventId)) {
-        store.recommendations.unshift(r);
+    for (const rec of createdRecommendations) {
+      const previous = store.recommendations.find(r => r.type === rec.type && r.eventId === rec.eventId &&
+        r.sourceRecords.length === rec.sourceRecords.length && rec.sourceRecords.every(id => r.sourceRecords.includes(id)));
+      if (previous) {
+        rec.id = previous.id;
+        rec.createdAt = previous.createdAt;
+        if (previous.status === 'dismissed') rec.status = 'dismissed';
+        Object.assign(previous, rec);
+      } else {
+        store.recommendations.unshift(rec);
       }
     }
+    if (createdRecommendations.length) saveDemoStore(store);
   }
 
   return NextResponse.json({

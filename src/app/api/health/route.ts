@@ -1,3 +1,4 @@
+import { geminiApiKey } from '@/lib/server/geminiConfig';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
@@ -5,11 +6,11 @@ export async function GET() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   const supabaseConfigured = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && key);
-  const geminiConfigured = Boolean(process.env.GEMINI_API_KEY);
+  const geminiConfigured = Boolean(geminiApiKey());
 
   return NextResponse.json({
     status: 'ok',
-    app: 'CampusOS + Crew Sync AI',
+    app: 'campusBEE + Crew Sync AI',
     mode: supabaseConfigured ? 'supabase' : 'local_seed',
     services: {
       supabase: supabaseConfigured,

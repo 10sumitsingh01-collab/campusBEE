@@ -1,3 +1,5 @@
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import {
   DEMO_USERS,
   SEED_CLUB_METRICS,
@@ -34,13 +36,17 @@ import {
 } from '@/types/domain';
 
 export interface CampusOSStore {
+  competitions?: Record<string,{revision:number;state:import('@/lib/judging/model').Competition}>;
   users: Record<UserRole, UserProfile>;
+  accounts: { profile: UserProfile; salt: string; passwordHash: string }[];
+  sessions: { digest: string; userId: string; expires: number }[];
   clubs: Club[];
   venues: Venue[];
   events: CampusEvent[];
   teams: Team[];
   tickets: EventTicket[];
   collegeIdCards: CollegeIdCard[];
+  collegeCardKey?: string;
   invites: TeamInvite[];
   submissions: Submission[];
   rubrics: RubricCriterion[];
@@ -59,6 +65,8 @@ export interface CampusOSStore {
 function createInitialStore(): CampusOSStore {
   return {
     users: structuredClone(DEMO_USERS),
+    accounts: [],
+    sessions: [],
     clubs: structuredClone(SEED_CLUBS),
     venues: structuredClone(SEED_VENUES),
     events: structuredClone(SEED_EVENTS),
@@ -244,19 +252,25 @@ const globalForStore = globalThis as unknown as {
   __campusOSStore?: CampusOSStore;
 };
 
+// The LAN prototype runs as a single Node process with one shared snapshot.
+const snapshot = process.env.CAMPUS_DEMO_FILE || '.campus-data/local.json';
+
+export function saveDemoStore(store: CampusOSStore) {
+  mkdirSync(dirname(snapshot), { recursive: true });
+  const temporary = snapshot + '.tmp';
+  writeFileSync(temporary, JSON.stringify(store), { mode: 0o600 });
+  renameSync(temporary, snapshot);
+}
+
 export function getStore(): CampusOSStore {
   if (!globalForStore.__campusOSStore) {
-    globalForStore.__campusOSStore = createInitialStore();
-  } else {
-    const hasShlok = globalForStore.__campusOSStore.collegeIdCards?.some(
-      (c) => c.barcodeToken === '19764'
-    );
-    if (!hasShlok) {
-      const fresh = createInitialStore();
-      globalForStore.__campusOSStore.collegeIdCards = fresh.collegeIdCards;
-      globalForStore.__campusOSStore.tickets = fresh.tickets;
-    }
+    globalForStore.__campusOSStore = existsSync(/* turbopackIgnore: true */ snapshot)
+      ? JSON.parse(readFileSync(/* turbopackIgnore: true */ snapshot, 'utf8')) as CampusOSStore
+      : createInitialStore();
   }
+  globalForStore.__campusOSStore.collegeIdCards ??= [];
+  globalForStore.__campusOSStore.accounts ??= [];
+  globalForStore.__campusOSStore.sessions ??= [];
   return globalForStore.__campusOSStore;
 }
 

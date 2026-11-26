@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ROLE_PERMISSIONS } from '@/lib/auth/roles';
 import { getRequestUser, unauthorizedResponse } from '@/lib/server/authGuard';
-import { getDataMode, getStore } from '@/lib/server/store';
+import { getDataMode, getStore, saveDemoStore } from '@/lib/server/store';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
@@ -85,7 +85,7 @@ export async function PATCH(request: NextRequest) {
 
   const store = getStore();
   const updated = {
-    ...store.users[user.role],
+    ...user,
     name,
     department,
     year,
@@ -93,7 +93,10 @@ export async function PATCH(request: NextRequest) {
     skills,
     interests,
   };
-  store.users[user.role] = updated;
+  const account = store.accounts.find(a => a.profile.id === user.id);
+  if (!account) return unauthorizedResponse();
+  account.profile = updated;
+  saveDemoStore(store);
 
   return NextResponse.json({ user: updated });
 }

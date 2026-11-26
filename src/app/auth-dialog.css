@@ -1,0 +1,152 @@
+.crew-auth-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(880px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  border: 0;
+  border-radius: 24px;
+  background: white;
+  color: var(--ink);
+  box-shadow: 0 24px 100px #071b1766;
+}
+
+.crew-auth-dialog::backdrop {
+  background: #181328b3;
+  backdrop-filter: blur(5px);
+}
+
+.crew-auth-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  min-height: 510px;
+}
+
+.crew-auth-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 42px;
+  justify-content: space-between;
+  overflow: hidden;
+  padding: 36px;
+  background: linear-gradient(175deg, #211b36de, #211b36cf 72%, #211b3655), url('/campus-festival.jpg') 65% center / cover;
+  color: #f7fff6;
+}
+
+.crew-auth-brand { display: flex; align-items: center; gap: 10px; font-weight: 750; }
+.crew-auth-brand .bee-logo { width: 40px; height: 40px; }
+.crew-auth-eyebrow { color: #ffd4a9; font-size: 11px; font-weight: 750; letter-spacing: 0.17em; }
+.crew-auth-headline { margin: 12px 0; font-size: clamp(36px, 6vw, 56px); font-weight: 780; letter-spacing: -0.065em; line-height: 0.98; }
+.crew-auth-description { max-width: 250px; color: #ebe5f1; font-size: 14px; line-height: 1.6; }
+.crew-auth-ticket {
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  margin: 4px 0 8px;
+  padding: 15px 19px;
+  border-radius: 10px;
+  background: #ffd4a9;
+  color: #342740;
+  transform: rotate(-8deg);
+}
+.crew-auth-ticket svg { margin-right: 12px; }
+.crew-auth-ticket span { width: 3px; height: 23px; background: currentColor; }
+.crew-auth-ticket span:last-child { width: 6px; }
+
+.crew-auth-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 54px 38px 42px;
+}
+
+.crew-auth-close, .crew-auth-password button {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.crew-auth-close { top: 12px; right: 12px; }
+.crew-auth-close:hover, .crew-auth-password button:hover { background: var(--tint); }
+
+.crew-auth-switcher {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 24px;
+  padding: 4px;
+  border-radius: 11px;
+  background: #efedf6;
+}
+.crew-auth-switcher button { padding: 8px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.crew-auth-switcher button[aria-pressed="true"] { background: white; box-shadow: 0 1px 3px #15362820; }
+
+.crew-auth-panel h1 { font-size: clamp(30px, 4vw, 40px); font-weight: 780; line-height: 1.05; letter-spacing: -0.05em; }
+.crew-auth-intro { margin: 8px 0 23px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+
+.crew-auth-form { display: grid; gap: 12px; }
+.crew-auth-form label, .crew-auth-form legend { display: block; font-size: 13px; font-weight: 700; }
+.crew-auth-form label[for="auth-password"] { margin-bottom: -7px; }
+.crew-auth-form input:not([type="radio"]) {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 5px;
+  padding: 8px 11px;
+  border: 1px solid #cecbdc;
+  border-radius: 9px;
+  background: white;
+  font-size: 16px;
+  font-weight: 400;
+}
+.crew-auth-form input::placeholder { color: #69677a; }
+.crew-auth-fields, .crew-auth-roles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.crew-auth-roles { margin-top: 5px; }
+.crew-auth-roles label { display: flex; gap: 7px; align-items: flex-start; padding: 8px; border: 1px solid #cecbdc; border-radius: 9px; cursor: pointer; }
+.crew-auth-roles label:has(:checked) { border-color: var(--action); background: var(--tint); }
+.crew-auth-roles input { margin-top: 3px; accent-color: var(--action); }
+.crew-auth-roles small { display: block; color: var(--muted); font-weight: 500; line-height: 1.3; }
+.crew-auth-password { position: relative; }
+.crew-auth-password input { margin-top: 0 !important; padding-right: 47px !important; }
+.crew-auth-password button { top: 4px; right: 5px; }
+
+.crew-auth-primary {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 46px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--action);
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.crew-auth-primary:hover { background: var(--action-deep); }
+.crew-auth-primary:disabled { opacity: 0.65; cursor: wait; }
+.crew-auth-dialog :focus-visible { outline: 2px solid var(--action); outline-offset: 2px; }
+.crew-auth-status { padding: 14px; border: 1px solid var(--line); border-radius: 11px; background: var(--tint); color: #3e3658; font-size: 14px; }
+
+@media (max-width: 650px) {
+  .crew-auth-layout { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .crew-auth-hero { padding: 17px 22px; }
+  .crew-auth-hero-copy, .crew-auth-ticket { display: none; }
+  .crew-auth-panel { padding: 48px 22px 24px; }
+}
+
+.crew-auth-demo legend { font-size: 13px; font-weight: 700; }
+.crew-auth-demo .crew-auth-roles { margin: 8px 0 20px; }
+
+.crew-auth-hero { background: linear-gradient(165deg,#1b78d6 10%,#206bbbc9 68%,#122e428c), url('/campus-panorama.webp') center / cover; }
+.crew-auth-eyebrow,.crew-auth-description { color:white; }
+.crew-auth-ticket { background:#b9f328; color:#111315; }

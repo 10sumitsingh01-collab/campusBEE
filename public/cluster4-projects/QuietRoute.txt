@@ -1,0 +1,12 @@
+QuietRoute
+Team Wayfinder | CLUSTER4 Build/24
+Prototype proposal for the campus showcase
+
+Problem
+Students need accessible paths when entrances close.
+
+Proposed design
+Model step-free paths as a graph. Filter closed entrances and return an alternative route.
+
+Validation plan
+Test a wheelchair route with a closed lift and compare the additional travel time.

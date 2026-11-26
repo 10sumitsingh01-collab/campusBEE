@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  outputFileTracingExcludes: { "/*": [".campus-data/**"] },
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

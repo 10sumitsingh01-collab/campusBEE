@@ -1,3 +1,4 @@
+import { saveDemoStore } from '@/lib/server/store';
 import { NextRequest, NextResponse } from 'next/server';
 import { canLockTeam } from '@/lib/registration/teamRules';
 import {
@@ -118,5 +119,6 @@ export async function POST(
   team.status = 'locked';
   team.lockedAt = new Date().toISOString();
 
+  saveDemoStore(store);
   return NextResponse.json({ team });
 }

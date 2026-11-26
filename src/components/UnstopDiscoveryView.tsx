@@ -1,400 +1,168 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
-import {
-  Award,
-  Bot,
-  Briefcase,
-  Building2,
-  Code2,
-  Cpu,
-  Heart,
-  HelpCircle,
-  Home,
-  LogIn,
-  Palette,
-  Plus,
-  Search,
-  Sparkles,
-  Trophy,
-  Users,
-} from 'lucide-react';
-import { CampusEvent, Club, Venue } from '@/types/domain';
+import BeeLogo from './BeeLogo';
 
-interface UnstopDiscoveryViewProps {
+import { useEffect, useId, useState } from 'react';
+import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, GalleryHorizontalEnd, List, Clock3, Code2, Flag, MapPin, Mic, Palette, Search, Terminal, Users, Wrench, X } from 'lucide-react';
+import EventPoster from './EventPoster';
+import type { CampusEvent, Club, Venue } from '@/types/domain';
+
+interface Props {
   events: CampusEvent[];
   clubs: Club[];
   venues: Venue[];
   onSelectEvent: (event: CampusEvent) => void;
+  onVolunteer?: (event: CampusEvent) => void;
   onOpenLogin: () => void;
-  onOpenSignup: () => void;
+  onOpenSignup?: () => void;
+  onOpenCalendar?: () => void;
+  registeredIds?: string[];
+  onOpenRegistrations?: () => void;
 }
 
-const CARD_THEMES = [
-  'from-[#0F3D5E] to-[#1C4980]',
-  'from-[#1E293B] to-[#334155]',
-  'from-[#311042] to-[#5B21B6]',
-  'from-[#0B3B2E] to-[#047857]',
-];
+const date = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
+const dateTime = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' });
+const teamSize = (e: CampusEvent) => e.maxTeamSize === 1 ? 'Individual' : (e.minTeamSize === e.maxTeamSize ? e.maxTeamSize : e.minTeamSize + '–' + e.maxTeamSize) + ' members';
+const initials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map(word => word[0]).join('').toUpperCase();
+const icons = { Hackathon: Code2, Workshop: Wrench, Competition: Flag, Seminar: Mic, 'Design Jam': Palette };
 
-const CATEGORIES = [
-  { id: 'all', label: 'All Events', icon: <Sparkles className="h-5 w-5 text-[#0073E6]" />, bg: 'bg-[#EBF4FF]' },
-  { id: 'Hackathon', label: 'Hackathons', icon: <Code2 className="h-5 w-5 text-[#0073E6]" />, bg: 'bg-[#EBF4FF]' },
-  { id: 'Workshop', label: 'Workshops', icon: <Cpu className="h-5 w-5 text-[#0073E6]" />, bg: 'bg-[#EBF4FF]' },
-  { id: 'Competition', label: 'Competitions', icon: <Trophy className="h-5 w-5 text-[#F59E0B]" />, bg: 'bg-[#FEF3C7]/60' },
-  { id: 'Design Jam', label: 'Design Jams', icon: <Palette className="h-5 w-5 text-[#7C3AED]" />, bg: 'bg-[#F3E8FF]' },
-  { id: 'Clubs', label: 'Clubs', icon: <Building2 className="h-5 w-5 text-[#059669]" />, bg: 'bg-[#D1FAE5]/70' },
-  { id: 'CrewSync', label: 'Crew Sync', icon: <Bot className="h-5 w-5 text-[#0073E6]" />, bg: 'bg-[#EBF4FF]' },
-];
+export default function UnstopDiscoveryView({ events, clubs, venues, onVolunteer, registeredIds = [], onOpenRegistrations, onSelectEvent, onOpenLogin, onOpenSignup, onOpenCalendar }: Props) {
+  const [section, setSection] = useState<'events' | 'clubs'>('events');
+  const [query, setQuery] = useState('');
+  const [type, setType] = useState('All');
+  const [clubId, setClubId] = useState('');
+  const [openOnly, setOpenOnly] = useState(false);
+  const [sort, setSort] = useState('startTime');
+  const [layout, setLayout] = useState<'posters' | 'agenda'>('posters');
+  const [featureId, setFeatureId] = useState('');
+  const [selected, setSelected] = useState('');
+  const headingId = useId();
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    const initial = window.setTimeout(tick, 0);
+    const timer = window.setInterval(tick, 30000);
+    return () => { window.clearTimeout(initial); window.clearInterval(timer); };
+  }, []);
+  const accepting = (e: CampusEvent) => now > 0 && e.status === 'published' && Date.parse(e.registrationDeadline) >= now;
+  const catalog = events.filter(e => e.status === 'published' || e.status === 'ongoing');
+  const lineup = catalog.filter(e => Date.parse(e.endTime) >= now)
+    .sort((a,b) => Date.parse(a.startTime) - Date.parse(b.startTime));
+  const featureIndex = Math.max(0, lineup.findIndex(e => e.id === featureId));
+  const feature = lineup[featureIndex];
+  function stepFeature(step: number) {
+    setFeatureId(lineup[(featureIndex + step + lineup.length) % lineup.length].id);
+  }
+  const details = catalog.find(e => e.id === selected);
+  const clubName = (id: string) => clubs.find(c => c.id === id)?.name ?? 'Campus club';
+  const venueName = (id: string) => venues.find(v => v.id === id)?.name ?? 'Venue pending';
+  const matches = (text: string) => text.toLowerCase().includes(query.trim().toLowerCase());
+  const visible = catalog.filter(e => (type === 'All' || type === e.eventType) && (!clubId || e.clubId === clubId) &&
+    (!openOnly || accepting(e)) && matches([e.title, e.description, clubName(e.clubId), venueName(e.venueId), ...e.tags].join(' ')))
+    .sort((a, b) => sort === 'registrationDeadline' ? Date.parse(a.registrationDeadline) - Date.parse(b.registrationDeadline) : Date.parse(a.startTime) - Date.parse(b.startTime));
+  const activeClubs = clubs.filter(c => c.status === 'active' && matches(c.name + ' ' + c.description));
+  const count = section === 'events' ? visible.length : activeClubs.length;
+  function browse(next: typeof section) {
+    setSection(next); setSelected(''); setType('All'); setClubId(''); setQuery(''); setOpenOnly(false); setSort('startTime');
+  }
+  function focusHeading() {
+    requestAnimationFrame(() => document.getElementById(headingId)?.focus());
+  }
+  function showEvent(id: string) {
+    setSelected(id); focusHeading();
+  }
+  const Content = onOpenCalendar ? 'div' : 'main';
+  const registered = details && (details.myEventRole || registeredIds.includes(details.id));
 
-export default function UnstopDiscoveryView({
-  events,
-  clubs,
-  venues,
-  onSelectEvent,
-  onOpenLogin,
-  onOpenSignup,
-}: UnstopDiscoveryViewProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-
-  const getClubName = (id: string) =>
-    clubs.find((c) => c.id === id)?.name ?? 'Campus Club';
-  const getVenueName = (id: string) =>
-    venues.find((v) => v.id === id)?.name ?? 'Campus Venue';
-
-  const filteredEvents = useMemo(() => {
-    return events.filter((ev) => {
-      if (
-        selectedCategory !== 'all' &&
-        selectedCategory !== 'Clubs' &&
-        selectedCategory !== 'CrewSync' &&
-        ev.eventType !== selectedCategory
-      ) {
-        return false;
-      }
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const hit =
-          ev.title.toLowerCase().includes(q) ||
-          ev.description.toLowerCase().includes(q) ||
-          ev.tags.some((t) => t.toLowerCase().includes(q)) ||
-          getClubName(ev.clubId).toLowerCase().includes(q);
-        if (!hit) return false;
-      }
-      return true;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events, clubs, searchQuery, selectedCategory]);
-
-  return (
-    <div className="min-h-screen bg-[#F5F7FA] text-[#1C4980] flex flex-col md:flex-row">
-      {/* Unstop-style Left White Sidebar */}
-      <aside className="w-full md:w-56 bg-white border-b md:border-b-0 md:border-r border-gray-200/80 flex flex-col justify-between p-4 shrink-0">
-        <div className="space-y-4">
-          {/* Logo */}
-          <div className="flex items-center justify-between px-1">
-            <span className="text-xl font-extrabold tracking-tight text-[#1C4980]">
-              campus<span className="text-[#0073E6]">os</span>
-            </span>
+  return <div className="campus-discover">
+    {!onOpenCalendar && <a className="skip-content" href={'#' + headingId}>Skip to discovery</a>}
+    {!onOpenCalendar && <header className="campus-bar">
+      <span className="campus-wordmark"><BeeLogo/>campusBEE</span>
+      <nav aria-label="Discovery">{(['events', 'clubs'] as const).map(s =>
+        <button key={s} aria-pressed={section === s} onClick={() => browse(s)}>{s === 'events' ? 'Events' : 'Clubs'}</button>)}</nav>
+      <button className="campus-login" onClick={onOpenLogin}>Sign in</button>
+    </header>}
+    <Content className="campus-body">
+      {details ? <>
+        <button className="campus-back" onClick={() => showEvent('')}>Back to {section}</button>
+        <article className="campus-detail">
+          <div className="campus-detail-banner"><div className="campus-detail-title"><span>{clubName(details.clubId)} · {details.eventType}</span>
+            <h1 id={headingId} tabIndex={-1}>{details.title}</h1><p><MapPin size={16}/>{venueName(details.venueId)}</p></div><EventPoster event={details}/></div>
+          <div className="campus-detail-body"><section><h2>About the event</h2><p>{details.description || 'Contact the organising club for event details.'}</p>
+            <h2>Who can join</h2><p>{details.eligibilityDepartments.join(', ') || 'All departments'} · {details.eligibilityYears.length ? 'Years ' + details.eligibilityYears.join(', ') : 'All years'}</p>
+            <h2>Event timeline</h2><dl>{[
+              ['Registration closes', details.registrationDeadline], ['Event starts', details.startTime], ['Event ends', details.endTime],
+              ...(details.submissionDeadline ? [['Submission deadline', details.submissionDeadline]] : []),
+            ].sort((a,b) => Date.parse(a[1]) - Date.parse(b[1])).map(([label, value]) =>
+              <div key={label}><dt>{label}</dt><dd>{dateTime.format(new Date(value))} IST</dd></div>)}</dl>
+          </section><aside><h2>Registration</h2><p><Users size={17}/>{teamSize(details)}</p>
+            <p><Clock3 size={17}/>Closes {date.format(new Date(details.registrationDeadline))}</p>
+            <button className="campus-primary" disabled={!registered && !accepting(details)} onClick={() => registered ? onOpenRegistrations?.() : onSelectEvent(details)}>
+              {registered ? 'View my registration' : accepting(details) ? (onVolunteer ? 'Register as contestant' : 'Continue to registration') : 'Registration closed'}
+            </button>
+            {registered && details.myEventRole && <p>Registered as {details.myEventRole}</p>}
+            {!registered && accepting(details) && onVolunteer && <button className="campus-primary" onClick={() => onVolunteer(details)}>Register as volunteer</button>}
+            </aside></div>
+        </article>
+      </> : <>
+        <div className="campus-showcase"><section className="campus-cover">
+          <div className="campus-cover-text"><h1>{section === 'clubs' ? <>Find your <em>campus club.</em></> : <>What’s on <em>campus.</em></>}</h1>
+            <p>{section === 'events' ? 'Hackathons, workshops and competitions from your college clubs.' : 'Explore student societies and the events they host.'}</p>
+            <form className="campus-search" role="search" onSubmit={e=>{e.preventDefault();focusHeading();}}><input type="search" aria-label={'Search ' + section} placeholder={section === 'events' ? 'Search hackathons, workshops, or clubs...' : 'Search campus clubs'} value={query} onChange={e => setQuery(e.target.value)}/><button type="submit" aria-label="Show search results"><Search size={20}/></button></form>
           </div>
-
-          {/* + Post Pill */}
-          <button
-            type="button"
-            onClick={onOpenSignup}
-            className="w-full flex items-center justify-center gap-1.5 py-2 px-4 rounded-full border border-[#0073E6]/40 text-[#1C4980] hover:bg-[#EBF4FF] text-sm font-medium transition cursor-pointer"
-          >
-            <Plus className="h-4 w-4 text-[#0073E6]" />
-            <span>Post</span>
-          </button>
-
-          {/* Vertical Nav */}
-          <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible">
-            {[
-              { id: 'all', label: 'Home', icon: <Home className="h-4 w-4" /> },
-              {
-                id: 'Hackathon',
-                label: 'Hackathons',
-                icon: <Code2 className="h-4 w-4" />,
-              },
-              {
-                id: 'Workshop',
-                label: 'Workshops',
-                icon: <Cpu className="h-4 w-4" />,
-              },
-              {
-                id: 'Competition',
-                label: 'Competitions',
-                icon: <Trophy className="h-4 w-4" />,
-              },
-              {
-                id: 'Design Jam',
-                label: 'Design Jams',
-                icon: <Palette className="h-4 w-4" />,
-              },
-              {
-                id: 'Clubs',
-                label: 'Campus Clubs',
-                icon: <Building2 className="h-4 w-4" />,
-              },
-              {
-                id: 'CrewSync',
-                label: 'Crew Sync AI',
-                icon: <Bot className="h-4 w-4" />,
-              },
-            ].map((item) => {
-              const active = selectedCategory === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    if (item.id === 'CrewSync') {
-                      onOpenSignup();
-                    } else {
-                      setSelectedCategory(item.id);
-                    }
-                  }}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition cursor-pointer ${
-                    active
-                      ? 'bg-[#EBF4FF] text-[#0073E6]'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {item.icon}
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
+        </section>
+          {feature && section === 'events' ? <div className="feature-stage" aria-label="Featured events">
+            <span className="feature-label"><CalendarDays size={18}/>Coming up</span>
+            <button type="button" className="feature-sheet" onClick={() => showEvent(feature.id)} aria-label={'Explore ' + feature.title}>
+              <EventPoster event={feature}/>
+              <span className="feature-date">{date.format(new Date(feature.startTime))}</span>
+              <span className="feature-caption" aria-live="polite"><small>{clubName(feature.clubId)}</small><strong>{feature.title}</strong></span>
+            </button>
+            {lineup.length > 1 && <div className="feature-controls">
+              <button aria-label="Previous featured event" onClick={() => stepFeature(-1)}><ChevronLeft size={19}/></button>
+              <span>{featureIndex + 1} / {lineup.length}</span>
+              <button aria-label="Next featured event" onClick={() => stepFeature(1)}><ChevronRight size={19}/></button>
+            </div>}
+            <button className="feature-view" onClick={()=>showEvent(feature.id)}>View <span aria-hidden="true">→</span></button>
+          </div> : null}
         </div>
-
-        {/* Bottom Sidebar Promo Cards (Unstop style) */}
-        <div className="hidden md:space-y-2.5 md:block pt-4">
-          <button
-            type="button"
-            onClick={onOpenSignup}
-            className="w-full text-left p-3 rounded-xl bg-[#F5F7FA] hover:bg-[#EBF4FF]/60 transition cursor-pointer flex items-center justify-between gap-2"
-          >
-            <div>
-              <p className="text-xs font-semibold text-[#1C4980]">
-                Host a Campus Event
-              </p>
-              <p className="text-[10px] text-gray-500">
-                Publish & check venue clashes
-              </p>
-            </div>
-            <Briefcase className="h-4 w-4 text-[#0073E6] shrink-0" />
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenSignup}
-            className="w-full text-left p-3 rounded-xl bg-[#F5F7FA] hover:bg-[#EBF4FF]/60 transition cursor-pointer flex items-center justify-between gap-2"
-          >
-            <div>
-              <p className="text-xs font-semibold text-[#1C4980]">
-                Volunteer on Campus
-              </p>
-              <p className="text-[10px] text-gray-500">
-                Match skills to club events
-              </p>
-            </div>
-            <Award className="h-4 w-4 text-[#7C3AED] shrink-0" />
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content Card */}
-      <div className="flex-1 p-3 md:p-5 min-w-0">
-        <div className="bg-white rounded-2xl border border-gray-200/70 min-h-full p-5 md:p-8 space-y-8 shadow-xs">
-          {/* Top Search & Auth Header */}
-          <header className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="hidden sm:block w-16" />
-
-            <div className="relative w-full max-w-md">
-              <Search className="h-4 w-4 text-gray-400 absolute left-3.5 top-2.5" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search events, clubs, or tags..."
-                className="w-full text-sm bg-white border border-gray-200 rounded-full pl-10 pr-4 py-2 focus:outline-none focus:border-[#0073E6]"
-              />
-            </div>
-
-            <div className="flex items-center gap-2.5 self-end sm:self-auto">
-              <HelpCircle className="h-5 w-5 text-gray-400 hidden md:block" />
-              <button
-                type="button"
-                onClick={onOpenSignup}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-gray-300 text-xs font-medium text-[#1C4980] hover:bg-gray-50 cursor-pointer"
-              >
-                <Users className="h-3.5 w-3.5 text-[#0073E6]" />
-                For Clubs
-              </button>
-              <button
-                type="button"
-                onClick={onOpenLogin}
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#0073E6] hover:bg-[#0060C2] text-white text-xs font-semibold transition cursor-pointer"
-              >
-                <LogIn className="h-3.5 w-3.5" />
-                Login
-              </button>
-            </div>
-          </header>
-
-          {/* Hero Heading + Stat Pill */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-[#1C4980]">
-              Unlock Your <span className="text-[#0073E6]">Campus!</span>
-            </h1>
-            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#F3E8FF] text-[#6D28D9] text-xs font-medium self-start">
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>
-                {clubs.length} Active Clubs · {venues.length} Campus Venues
-              </span>
-            </div>
-          </div>
-
-          {/* Horizontal Category Tiles */}
-          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-            {CATEGORIES.map((cat) => {
-              const active = selectedCategory === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => {
-                    if (cat.id === 'CrewSync') {
-                      onOpenSignup();
-                    } else {
-                      setSelectedCategory(cat.id);
-                    }
-                  }}
-                  className={`rounded-xl p-3.5 flex flex-col items-center justify-center gap-2 text-center transition border cursor-pointer ${
-                    cat.bg
-                  } ${
-                    active
-                      ? 'border-[#0073E6] ring-1 ring-[#0073E6]'
-                      : 'border-transparent hover:border-[#0073E6]/40'
-                  }`}
-                >
-                  <span className="text-xs font-semibold text-[#1C4980]">
-                    {cat.label}
-                  </span>
-                  <div className="h-9 w-9 rounded-lg bg-white/80 flex items-center justify-center shadow-2xs">
-                    {cat.icon}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Featured Events Section */}
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[#1C4980] flex items-center gap-2">
-                <span className="h-5 w-1 bg-[#0073E6] rounded-full" />
-                Featured
-              </h2>
-              <span className="text-xs text-gray-500">
-                Select any event to register or sign in
-              </span>
-            </div>
-
-            {filteredEvents.length === 0 ? (
-              <div className="rounded-xl bg-[#F5F7FA] p-10 text-center text-sm text-gray-500">
-                No matching events found. Try clearing your search.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {filteredEvents.map((ev, idx) => {
-                  const gradient = CARD_THEMES[idx % CARD_THEMES.length];
-                  const dateLabel = new Date(ev.startTime).toLocaleDateString(
-                    'en-IN',
-                    { day: 'numeric', month: 'short' }
-                  );
-                  return (
-                    <button
-                      key={ev.id}
-                      type="button"
-                      onClick={() => onSelectEvent(ev)}
-                      className="text-left group rounded-2xl border border-gray-200 bg-white overflow-hidden hover:shadow-md hover:border-[#0073E6]/50 transition flex flex-col justify-between cursor-pointer"
-                    >
-                      {/* Poster Banner */}
-                      <div
-                        className={`bg-gradient-to-br ${gradient} p-5 text-white space-y-3 min-h-[168px] flex flex-col justify-between`}
-                      >
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="px-2.5 py-0.5 rounded-full bg-white/15 backdrop-blur-xs font-medium">
-                            {getClubName(ev.clubId)}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full bg-white/15 font-medium">
-                            {dateLabel}
-                          </span>
-                        </div>
-
-                        <div className="space-y-1">
-                          <h3 className="text-xl font-extrabold leading-tight">
-                            {ev.title}
-                          </h3>
-                          <p className="text-xs text-white/80 line-clamp-2">
-                            {ev.description}
-                          </p>
-                        </div>
-
-                        <div className="pt-1">
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-[#FACC15] text-[#1E293B]">
-                            Register Now →
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Card Footer */}
-                      <div className="p-4 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5 text-[11px] text-gray-600">
-                            <span className="px-2 py-0.5 rounded-full bg-gray-100">
-                              {getVenueName(ev.venueId)}
-                            </span>
-                            <span className="px-2 py-0.5 rounded-full bg-gray-100">
-                              Free
-                            </span>
-                          </div>
-                          <Heart className="h-4 w-4 text-gray-400 group-hover:text-rose-500 transition" />
-                        </div>
-                        <p className="text-sm font-semibold text-[#1C4980]">
-                          {ev.title} · {ev.eventType}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          {/* Trusted by Campus Clubs Strip */}
-          <footer className="pt-4 border-t border-gray-100 text-center space-y-4">
-            <p className="text-xs font-semibold text-gray-500">
-              <span className="text-[#0073E6]">Trusted</span> by Campus Clubs &
-              Organizers
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-8 text-xs font-semibold text-gray-400">
-              {clubs.map((c) => (
-                <span key={c.id} className="text-gray-600">
-                  {c.name}
-                </span>
-              ))}
-              {venues.slice(0, 2).map((v) => (
-                <span key={v.id}>{v.name}</span>
-              ))}
-            </div>
-          </footer>
-        </div>
-      </div>
-    </div>
-  );
+        <section aria-label="Browse campus">
+          <div className="campus-tools"><div className="catalog-heading"><h2 id={headingId} tabIndex={-1}>{section === 'events' ? 'Explore events' : 'Campus clubs'}</h2>
+            <span className="campus-count" role="status">{String(count).padStart(2, '0')} {section==='events'?(count===1?'event':'events'):(count===1?'club':'clubs')}</span></div>
+            {section==='events' && <div className="layout-switch" role="group" aria-label="Event display">
+              <button aria-pressed={layout==='posters'} onClick={()=>setLayout('posters')}><GalleryHorizontalEnd size={16}/>Posters</button>
+              <button aria-pressed={layout==='agenda'} onClick={()=>setLayout('agenda')}><List size={16}/>Agenda</button>
+              {onOpenCalendar && <button onClick={onOpenCalendar}><CalendarDays size={16}/>Calendar</button>}
+            </div>}</div>
+          {section==='events' && <div className="campus-filters"><div className="category-scroll">
+            {['All', ...new Set(catalog.map(e=>e.eventType))].map(t=><button key={t} aria-pressed={type===t} onClick={()=>setType(t)}>{t==='All'?'All events':t}</button>)}
+            {clubId && <button onClick={()=>setClubId('')}>{clubName(clubId)} <X size={14}/></button>}</div>
+            <div className="catalog-options"><label className="registration-switch"><input type="checkbox" checked={openOnly} onChange={e=>setOpenOnly(e.target.checked)}/>Open registration</label>
+              <label className="campus-sort">Sort <select aria-label="Sort events" value={sort} onChange={e=>setSort(e.target.value)}>
+                <option value="startTime">Soonest event</option><option value="registrationDeadline">Earliest deadline</option></select><ChevronDown size={15}/></label></div>
+          </div>}
+          <div className={section === 'events' && layout === 'agenda' ? 'campus-agenda' : 'campus-cards'}>{section === 'clubs' ? activeClubs.map(c => <article key={c.id}>
+            <span className="campus-category"><Users size={16}/>{c.category}</span><h3>{c.name}</h3><p>{c.description}</p>
+            <button onClick={() => { browse('events'); setClubId(c.id); focusHeading(); }}>View club events</button>
+          </article>) : visible.map(e => {
+            const Icon = icons[e.eventType] ?? CalendarDays;
+            if (layout === 'agenda') return <article key={e.id} className="agenda-row">
+              <time dateTime={e.startTime}>{date.format(new Date(e.startTime))}<small>{new Date(e.startTime).toLocaleTimeString('en-IN', {hour:'numeric',minute:'2-digit',timeZone:'Asia/Kolkata'})} IST</small></time>
+              <div><span>{clubName(e.clubId)} · {e.eventType}</span><h3><button onClick={() => showEvent(e.id)}>{e.title}</button></h3><p>{venueName(e.venueId)}</p></div>
+            </article>;
+            return <article key={e.id} data-kind={e.eventType}><button type="button" className="poster-open" aria-label={'Open poster for ' + e.title} onClick={() => showEvent(e.id)}>
+              <EventPoster event={e}/>
+            </button><div className="campus-cardtop"><span className="campus-category"><Icon size={16}/>{e.eventType}</span>
+              <time dateTime={e.startTime}>{date.format(new Date(e.startTime))}</time></div>
+              <small className="club-byline"><span aria-hidden="true">{initials(clubName(e.clubId))}</span>{clubName(e.clubId)}</small><h3>{e.title}</h3>
+              <ul><li><MapPin/>{venueName(e.venueId)}</li><li><Users/>{teamSize(e)}</li><li className="card-registration"><Clock3/>{accepting(e) ? 'Register by ' + date.format(new Date(e.registrationDeadline)) : 'Registration closed'}</li></ul>
+              <div className="campus-cardfoot"><button aria-label={'View details for ' + e.title} onClick={() => showEvent(e.id)}>View details</button>{(e.myEventRole || registeredIds.includes(e.id)) && <span><Check size={16}/>{e.myEventRole === 'volunteer' ? 'Volunteer' : 'Contestant'}</span>}</div>
+            </article>;
+          })}</div>
+          {!count && <div className="campus-empty"><h3>No matching {section}</h3><button onClick={() => browse(section)}>Reset search and filters</button></div>}
+        </section>
+        {onOpenSignup && <aside className="campus-ai"><Terminal/><div><h2>Crew Sync AI</h2><p>Plan a club event, find a venue and check for clashes.</p></div><button onClick={onOpenSignup}>Organiser access</button></aside>}
+      </>}
+    </Content>
+  </div>;
 }

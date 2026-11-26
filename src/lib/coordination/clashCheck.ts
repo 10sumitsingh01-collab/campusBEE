@@ -40,15 +40,20 @@ function isActiveForConflict(event: CampusEvent): boolean {
  */
 export function detectVenueClashes(
   events: CampusEvent[],
-  venues: Venue[]
+  venues: Venue[],
+  managedClubs?: ReadonlySet<string>
 ): VenueClashResult[] {
   const activeEvents = events.filter(isActiveForConflict);
   const clashes: VenueClashResult[] = [];
 
   for (let i = 0; i < activeEvents.length; i++) {
     for (let j = i + 1; j < activeEvents.length; j++) {
-      const a = activeEvents[i];
-      const b = activeEvents[j];
+      let a = activeEvents[i];
+      let b = activeEvents[j];
+      if (managedClubs && !managedClubs.has(b.clubId)) {
+        if (!managedClubs.has(a.clubId)) continue;
+        [a, b] = [b, a];
+      }
 
       if (!a.venueId || a.venueId !== b.venueId) continue;
 
@@ -60,10 +65,10 @@ export function detectVenueClashes(
         if (!venue) continue;
 
         const overlapStart = new Date(
-          Math.max(new Date(a.startTime).getTime(), new Date(b.startTime).getTime())
+          Math.max(rangeA.startMs, rangeB.startMs)
         ).toISOString();
         const overlapEnd = new Date(
-          Math.min(new Date(a.endTime).getTime(), new Date(b.endTime).getTime())
+          Math.min(rangeA.endMs, rangeB.endMs)
         ).toISOString();
 
         clashes.push({
@@ -110,16 +115,10 @@ export function checkCandidateEventClashes(
         eventB: candidate,
         venue,
         overlapStart: new Date(
-          Math.max(
-            new Date(other.startTime).getTime(),
-            new Date(candidate.startTime).getTime()
-          )
+          Math.max(otherRange.startMs, candRange.startMs)
         ).toISOString(),
         overlapEnd: new Date(
-          Math.min(
-            new Date(other.endTime).getTime(),
-            new Date(candidate.endTime).getTime()
-          )
+          Math.min(otherRange.endMs, candRange.endMs)
         ).toISOString(),
         severity: 'hard_venue_conflict',
         alternateVenues: findAlternateVenues(candidate, active, venues),
@@ -170,19 +169,19 @@ export function findAlternateTimeSlots(
     new Date(targetEvent.startTime).getTime();
   if (durationMs <= 0) return [];
 
-  const baseDate = new Date(targetEvent.startTime);
+  const campusDate = new Date(targetEvent.startTime).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  const midnightMs = Date.parse(campusDate + 'T00:00:00+05:30');
   const candidates: { startTime: string; endTime: string; label: string }[] = [];
 
   // Try +1 day same time, and evening slot same day (17:00)
-  const dayOffsets = [0, 1];
+  const dayOffsets = Array.from({length: 15}, (_, i) => i);
   for (const dayOffset of dayOffsets) {
-    const startHours = dayOffset === 0 ? [17] : [10, 14];
+    const startHours = dayOffset === 0 ? [17] : [...new Set([(Date.parse(targetEvent.startTime) - midnightMs) / 3600000, 10, 14])];
     for (const hour of startHours) {
-      const candStart = new Date(baseDate);
-      candStart.setDate(candStart.getDate() + dayOffset);
-      candStart.setHours(hour, 0, 0, 0);
+      const candStart = new Date(midnightMs + (dayOffset * 24 + hour) * 3600000);
       const candEnd = new Date(candStart.getTime() + durationMs);
 
+      if (candEnd.getTime() > midnightMs + (dayOffset + 1) * 86400000 || candStart.getTime() === Date.parse(targetEvent.startTime)) continue;
       const candStartBuf =
         candStart.getTime() - targetEvent.setupBufferMinutes * 60_000;
       const candEndBuf =
@@ -196,17 +195,20 @@ export function findAlternateTimeSlots(
         return candStartBuf < otherRange.endMs && otherRange.startMs < candEndBuf;
       });
 
-      if (!conflicts) {
+      if (!conflicts && candStartBuf >= Date.now()) {
         const dateLabel = candStart.toLocaleDateString('en-IN', {
+          timeZone: 'Asia/Kolkata',
           day: 'numeric',
           month: 'short',
         });
         const startLabel = candStart.toLocaleTimeString('en-IN', {
+          timeZone: 'Asia/Kolkata',
           hour: '2-digit',
           minute: '2-digit',
           hour12: false,
         });
         const endLabel = candEnd.toLocaleTimeString('en-IN', {
+          timeZone: 'Asia/Kolkata',
           hour: '2-digit',
           minute: '2-digit',
           hour12: false,
@@ -216,6 +218,7 @@ export function findAlternateTimeSlots(
           endTime: candEnd.toISOString(),
           label: `${dateLabel}, ${startLabel}–${endLabel}`,
         });
+        if (candidates.length === 3) return candidates;
       }
     }
   }

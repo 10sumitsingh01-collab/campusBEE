@@ -63,13 +63,13 @@ export default function CertificatesView({
   };
 
   return (
-    <div className="py-10 max-w-5xl mx-auto px-6 space-y-8">
+    <div className="work-page py-10 max-w-5xl mx-auto px-6 space-y-8">
       <div className="space-y-1">
         <h1 className="text-3xl font-semibold text-[#4D4D4D]">
           Certificates & Verification
         </h1>
         <p className="text-sm text-[#717171]">
-          Issue verifiable participation, winner, and volunteer certificates
+          {role === 'student' ? 'Look up a certificate using its verification code.' : 'Verify certificates and issue them for completed events.'}
         </p>
       </div>
 
@@ -79,7 +79,7 @@ export default function CertificatesView({
         className="bg-white border border-gray-200 rounded-lg p-6 space-y-4"
       >
         <h2 className="text-base font-semibold text-[#4D4D4D] flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-[#4CAF4F]" />
+          <ShieldCheck className="h-4 w-4 text-action" />
           Verify Certificate Code
         </h2>
         <div className="flex flex-col sm:flex-row gap-3">
@@ -90,12 +90,12 @@ export default function CertificatesView({
               value={verifyCode}
               onChange={(e) => setVerifyCode(e.target.value)}
               placeholder="Enter certificate code (e.g., COS-THON-A1B2C3)"
-              className="w-full text-sm border border-gray-200 rounded pl-9 pr-3 py-2 focus:outline-none focus:border-[#4CAF4F]"
+              className="w-full text-sm border border-gray-200 rounded pl-9 pr-3 py-2 focus:outline-none focus:border-action"
             />
           </div>
           <button
             type="submit"
-            className="bg-[#4CAF4F] hover:bg-[#43A046] text-white text-sm font-medium px-5 py-2 rounded cursor-pointer"
+            className="bg-action hover:bg-action-hover text-white text-sm font-medium px-5 py-2 rounded cursor-pointer"
           >
             Verify
           </button>
@@ -105,13 +105,13 @@ export default function CertificatesView({
           <div
             className={`rounded p-4 text-xs flex items-center gap-2 ${
               verifyResult.valid
-                ? 'bg-[#E8F5E9] text-[#263238]'
+                ? 'bg-action-tint text-[#263238]'
                 : 'bg-rose-50 text-rose-800 border border-rose-200'
             }`}
           >
             {verifyResult.valid ? (
               <>
-                <CheckCircle2 className="h-4 w-4 text-[#4CAF4F] shrink-0" />
+                <CheckCircle2 className="h-4 w-4 text-action shrink-0" />
                 <span>
                   Valid {verifyResult.certificate?.type} certificate for{' '}
                   <strong>{verifyResult.eventTitle}</strong> (
@@ -138,7 +138,7 @@ export default function CertificatesView({
           className="bg-white border border-gray-200 rounded-lg p-6 space-y-4"
         >
           <h2 className="text-base font-semibold text-[#4D4D4D] flex items-center gap-2">
-            <Award className="h-4 w-4 text-[#4CAF4F]" />
+            <Award className="h-4 w-4 text-action" />
             Issue Certificate
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -176,7 +176,7 @@ export default function CertificatesView({
           </div>
           <button
             type="submit"
-            className="bg-[#4CAF4F] hover:bg-[#43A046] text-white text-xs font-medium px-4 py-2 rounded cursor-pointer"
+            className="bg-action hover:bg-action-hover text-white text-xs font-medium px-4 py-2 rounded cursor-pointer"
           >
             Generate Verifiable Certificate
           </button>
@@ -203,7 +203,7 @@ export default function CertificatesView({
                     Code: <code className="font-mono">{c.certificateCode}</code>
                   </p>
                 </div>
-                <span className="text-[#4CAF4F] font-medium">Verified</span>
+                <span className="text-action font-medium">Verified</span>
               </div>
             ))}
           </div>

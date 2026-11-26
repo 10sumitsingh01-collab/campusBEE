@@ -1,3 +1,4 @@
+import { saveDemoStore } from '@/lib/server/store';
 import { NextRequest, NextResponse } from 'next/server';
 import { checkCandidateEventClashes } from '@/lib/coordination/clashCheck';
 import {
@@ -24,7 +25,7 @@ export async function GET(
     return NextResponse.json({ error: 'Event not found' }, { status: 404 });
   }
 
-  if (event.status === 'draft' && !canManageClub(user, event.clubId)) {
+  if (['draft','pending_approval'].includes(event.status) && !canManageClub(user, event.clubId)) {
     return forbiddenResponse('Draft events are restricted to club organizers.');
   }
 
@@ -45,6 +46,15 @@ export async function PATCH(
   const { id } = await context.params;
   const body = (await request.json()) as Partial<CampusEvent>;
 
+  const expectedStatus = request.nextUrl.searchParams.get('from');
+  function transitionError(current: CampusEvent['status']) {
+    if (expectedStatus && expectedStatus !== current) return NextResponse.json({error:'The request has already changed. Refresh the queue.'},{status:409});
+    if (user?.role !== 'college_admin' && body.status && body.status !== current &&
+        !(current === 'draft' && body.status === 'pending_approval') && body.status !== 'cancelled') {
+      return forbiddenResponse('College admin approval is required to publish an event.');
+    }
+  }
+
   if (getDataMode() === 'supabase') {
     const supabase = await createServerSupabaseClient();
     if (!supabase) return unauthorizedResponse();
@@ -59,6 +69,23 @@ export async function PATCH(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
+    const invalid = transitionError(existing.status);
+    if (invalid) return invalid;
+    if (request.nextUrl.searchParams.get('resolveClash') === '1') {
+      if (user.role !== 'college_admin') {
+        const { data: club } = await supabase.from('clubs').select('owner_id').eq('id', existing.club_id).maybeSingle();
+        if (club?.owner_id !== user.id) return forbiddenResponse();
+      }
+      const target = body.venueId ?? existing.venue_id;
+      const check = await supabase.rpc('detect_venue_clashes', { p_event_id: id, p_venue_id: target,
+        p_start_time: body.startTime ?? existing.start_time, p_end_time: body.endTime ?? existing.end_time,
+        p_setup_minutes: existing.setup_buffer_minutes, p_teardown_minutes: existing.teardown_buffer_minutes });
+      const {data: room} = await supabase.from('venues').select('capacity').eq('id',target).maybeSingle();
+      const bookings = await supabase.from('registrations').select('id',{count:'exact',head:true}).eq('event_id',id).eq('status','registered');
+      if (check.error || bookings.error || !room || room.capacity < (bookings.count ?? 0) || check.data?.length)
+        return NextResponse.json({error:'This booking could not be confirmed. Refresh the suggestions.'},{status:409});
+    }
+
     const { data: updated, error } = await supabase
       .from('events')
       .update({
@@ -70,6 +97,7 @@ export async function PATCH(
         status: body.status ?? existing.status,
       })
       .eq('id', id)
+      .eq('status', existing.status)
       .select('*')
       .single();
 
@@ -114,6 +142,8 @@ export async function PATCH(
     return forbiddenResponse('Only this club’s organizer or admin can edit it.');
   }
 
+  const invalid = transitionError(existing.status);
+  if (invalid) return invalid;
   const updated: CampusEvent = {
     ...existing,
     ...body,
@@ -128,9 +158,16 @@ export async function PATCH(
     );
   }
 
-  store.events[idx] = updated;
   const clashes = checkCandidateEventClashes(updated, store.events, store.venues);
+  if (request.nextUrl.searchParams.get('resolveClash') === '1') {
+    const venue = store.venues.find(v => v.id === updated.venueId);
+    if (!venue || venue.capacity < existing.registrationsCount || clashes.length) {
+      return NextResponse.json({ error: 'This venue is no longer available. Scan for a current alternative.' }, { status: 409 });
+    }
+  }
+  store.events[idx] = updated;
 
+  saveDemoStore(store);
   return NextResponse.json({ event: updated, clashes });
 }
 
@@ -168,5 +205,6 @@ export async function DELETE(
   }
 
   store.events[idx] = { ...store.events[idx], status: 'cancelled' };
+  saveDemoStore(store);
   return NextResponse.json({ event: store.events[idx] });
 }

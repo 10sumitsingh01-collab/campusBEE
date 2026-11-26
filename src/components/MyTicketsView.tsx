@@ -14,9 +14,10 @@ import { EventTicket } from '@/types/domain';
 
 interface MyTicketsViewProps {
   role: string;
+  onBrowseEvents: () => void;
 }
 
-export default function MyTicketsView({ role }: MyTicketsViewProps) {
+export default function MyTicketsView({ role, onBrowseEvents }: MyTicketsViewProps) {
   const [tickets, setTickets] = useState<EventTicket[]>([]);
   const [qrImages, setQrImages] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -74,7 +75,7 @@ export default function MyTicketsView({ role }: MyTicketsViewProps) {
     doc.rect(0, 0, 420, 72, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(18);
-    doc.text('CampusOS Event Pass', 28, 36);
+    doc.text(ticket.eventRole === 'volunteer' ? 'campusBEE Volunteer Pass' : 'campusBEE Event Pass', 28, 36);
     doc.setFontSize(10);
     doc.text(`Ticket ID: ${ticket.ticketCode}`, 28, 54);
 
@@ -118,11 +119,11 @@ export default function MyTicketsView({ role }: MyTicketsViewProps) {
   };
 
   return (
-    <div className="py-10 max-w-5xl mx-auto px-6 space-y-8">
+    <div className="work-page py-10 max-w-5xl mx-auto px-6 space-y-8">
       <div className="space-y-1">
         <h1 className="text-3xl font-semibold text-[#4D4D4D]">My Tickets</h1>
         <p className="text-sm text-[#717171]">
-          Your Smart QR Event Passes for registered campus events
+          Show your QR pass at check-in or download a copy before the event.
         </p>
       </div>
 
@@ -137,14 +138,14 @@ export default function MyTicketsView({ role }: MyTicketsViewProps) {
         </div>
       ) : tickets.length === 0 ? (
         <div className="bg-[#F5F7FA] border border-gray-200 rounded-lg p-10 text-center space-y-2">
-          <Ticket className="h-8 w-8 text-[#4CAF4F] mx-auto" />
+          <Ticket className="h-8 w-8 text-action mx-auto" />
           <p className="text-sm font-medium text-[#4D4D4D]">
             No event passes yet
           </p>
           <p className="text-xs text-[#717171]">
-            Register for an event in My Teams & Registrations to generate your
-            QR ticket.
+            Register for an event to get your first QR pass.
           </p>
+          <button onClick={onBrowseEvents} className="rounded bg-action px-4 py-2 text-white">Explore events</button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -156,7 +157,7 @@ export default function MyTicketsView({ role }: MyTicketsViewProps) {
               <div className="bg-[#1C4980] text-white px-5 py-4 flex items-center justify-between">
                 <div>
                   <p className="text-[11px] uppercase tracking-wider text-blue-200">
-                    Smart QR Event Pass
+                    {t.eventRole === 'volunteer' ? 'Volunteer' : 'Contestant'} event pass
                   </p>
                   <h2 className="text-lg font-bold">{t.eventTitle}</h2>
                 </div>
@@ -176,20 +177,20 @@ export default function MyTicketsView({ role }: MyTicketsViewProps) {
 
                   <div className="pt-2 space-y-1 text-[#717171]">
                     <p className="flex items-center gap-1.5">
-                      <Calendar className="h-3.5 w-3.5 text-[#4CAF4F]" />
+                      <Calendar className="h-3.5 w-3.5 text-action" />
                       {new Date(t.eventStartTime).toLocaleString('en-IN', {
                         dateStyle: 'medium',
                         timeStyle: 'short',
                       })}
                     </p>
                     <p className="flex items-center gap-1.5">
-                      <MapPin className="h-3.5 w-3.5 text-[#4CAF4F]" />
+                      <MapPin className="h-3.5 w-3.5 text-action" />
                       {t.venueName}
                     </p>
                   </div>
 
                   {t.checkedInAt && (
-                    <span className="inline-flex items-center gap-1 mt-2 text-[11px] px-2.5 py-1 rounded bg-[#E8F5E9] text-[#4CAF4F] font-semibold">
+                    <span className="inline-flex items-center gap-1 mt-2 text-[11px] px-2.5 py-1 rounded bg-action-tint text-action font-semibold">
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       Checked In
                     </span>
@@ -219,7 +220,7 @@ export default function MyTicketsView({ role }: MyTicketsViewProps) {
                 <button
                   type="button"
                   onClick={() => handleDownloadPdf(t)}
-                  className="inline-flex items-center gap-1.5 bg-[#4CAF4F] hover:bg-[#43A046] text-white text-xs font-medium px-3.5 py-1.5 rounded transition cursor-pointer"
+                  className="inline-flex items-center gap-1.5 bg-action hover:bg-action-hover text-white text-xs font-medium px-3.5 py-1.5 rounded transition cursor-pointer"
                 >
                   <Download className="h-3.5 w-3.5" />
                   Download PDF

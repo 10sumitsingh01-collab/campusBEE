@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import ClubActivityGraph from './ClubActivityGraph';
+import React, { useEffect, useState } from 'react';
 import {
   FileText,
   Handshake,
@@ -9,7 +10,7 @@ import {
   TrendingDown,
   Users,
 } from 'lucide-react';
-import { VenueClashResult } from '@/lib/coordination/clashCheck';
+import { AudienceClashResult, VenueClashResult } from '@/lib/coordination/clashCheck';
 import {
   AIRecommendation,
   CampusEvent,
@@ -39,15 +40,22 @@ interface ClubHealthAssessment {
 }
 
 interface CrewSyncViewProps {
+  managedClubId?: string;
+  planMessage: string;
   role: UserRole;
   events: CampusEvent[];
+  calendarEvents: CampusEvent[];
   clubs: Club[];
   venues: Venue[];
   clashes: VenueClashResult[];
+  audienceClashes: AudienceClashResult[];
+  refreshSchedule: () => void;
   recommendations: AIRecommendation[];
   clubMetrics: ClubActivityMetric[];
+  onReviewRequests: () => void;
   onOpenCreateEvent: () => void;
-  onResolveClash: (eventId: string, newVenueId: string) => Promise<void>;
+  onOpenCalendar: () => void;
+  onResolveClash: (eventId: string, newVenueId: string, slot?: { startTime:string; endTime:string }) => Promise<void>;
   onRecommendationAction: (
     id: string,
     status: 'accepted' | 'dismissed'
@@ -56,17 +64,36 @@ interface CrewSyncViewProps {
 }
 
 export default function CrewSyncView({
+  managedClubId,
+  planMessage,
   role,
-  events,
+  events, calendarEvents,
   clubs,
-  clashes,
+  clashes, audienceClashes, refreshSchedule,
   recommendations,
   clubMetrics,
-  onOpenCreateEvent,
+  onReviewRequests, onOpenCreateEvent,
+  onOpenCalendar,
   onResolveClash,
   onRecommendationAction,
   onRecommendationAdded,
 }: CrewSyncViewProps) {
+  const [geminiConfigured, setGeminiConfigured] = useState<boolean | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch('/api/health', { signal: controller.signal, cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setGeminiConfigured(data.services.gemini); })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
+  const [reportBusy,setReportBusy] = useState(false);
+  const [reportError,setReportError] = useState('');
+  const [reportSource, setReportSource] = useState('');
+  const admin = role === 'college_admin';
+  const [tool, setTool] = useState(admin ? 'Campus overview' : 'Schedule');
+  const [scanNote, setScanNote] = useState('');
+  const [moving, setMoving] = useState(false);
   const [coordLoading, setCoordLoading] = useState(false);
   const [collabLoading, setCollabLoading] = useState(false);
   const [skillsQuery, setSkillsQuery] = useState('Frontend, Hardware, Media');
@@ -76,11 +103,30 @@ export default function CrewSyncView({
   const [healthAssessments, setHealthAssessments] = useState<
     ClubHealthAssessment[]
   >([]);
-  const [reportEventId, setReportEventId] = useState(events[0]?.id ?? '');
+  const [reportEventId, setReportEventId] = useState('');
   const [organizerNotes, setOrganizerNotes] = useState('');
   const [generatedReport, setGeneratedReport] = useState<EventReport | null>(
     null
   );
+
+  async function applyMove(eventId: string, venueId: string, slot?: { startTime:string; endTime:string }) {
+    setMoving(true);
+    try { await onResolveClash(eventId, venueId, slot); } finally { setMoving(false); }
+  }
+
+  const selectedEvent = events.find(e => e.id === reportEventId) ?? events[0];
+  const reportId = selectedEvent?.id;
+  useEffect(() => {
+    if (tool !== 'Reports' || !reportId) return;
+    const controller = new AbortController();
+    fetch('/api/crew-sync/reports?eventId='+encodeURIComponent(reportId),{signal:controller.signal,cache:'no-store'})
+      .then(async res => {
+        if (!res.ok) throw new Error('Could not load the saved draft.');
+        const data = await res.json();
+        if (!controller.signal.aborted && data.reports[0]) setGeneratedReport(prev=>prev?.eventId===reportId ? prev : data.reports[0]);
+      }).catch(() => { if (!controller.signal.aborted) setReportError('Could not load the saved draft. You can retry by opening Reports again.'); });
+    return () => controller.abort();
+  },[tool,reportId]);
 
   const getClubName = (id: string) => clubs.find((c) => c.id === id)?.name ?? id;
 
@@ -88,32 +134,37 @@ export default function CrewSyncView({
     const start = new Date(startIso);
     const end = new Date(endIso);
     return `${start.toLocaleDateString('en-IN', {
-      day: 'numeric',
+      timeZone: 'Asia/Kolkata', day: 'numeric',
       month: 'short',
     })} · ${start.toLocaleTimeString('en-IN', {
       hour: '2-digit',
       minute: '2-digit',
-      hour12: false,
+      timeZone: 'Asia/Kolkata', hour12: false,
     })}–${end.toLocaleTimeString('en-IN', {
       hour: '2-digit',
       minute: '2-digit',
-      hour12: false,
+      timeZone: 'Asia/Kolkata', hour12: false,
     })}`;
   };
 
   const handleRunCoordination = async () => {
-    setCoordLoading(true);
+    setCoordLoading(true); setScanNote('');
     try {
       const res = await fetch('/api/crew-sync/coordination', {
         method: 'POST',
         headers: { 'x-demo-role': role },
       });
       const data = await res.json();
-      if (res.ok && Array.isArray(data.recommendations)) {
+      if (!res.ok) throw new Error(data.error || 'Unable to scan the schedule.');
+      refreshSchedule();
+      setScanNote('Scan complete. Calendar refresh requested.');
+      if (Array.isArray(data.recommendations)) {
         for (const rec of data.recommendations) {
           onRecommendationAdded(rec);
         }
       }
+    } catch (error) {
+      setScanNote(error instanceof Error ? error.message : 'Scan failed. Try again.');
     } finally {
       setCoordLoading(false);
     }
@@ -129,8 +180,8 @@ export default function CrewSyncView({
           'x-demo-role': role,
         },
         body: JSON.stringify({
-          clubId: clubs[0]?.id,
-          eventId: events[0]?.id,
+          clubId: selectedEvent?.clubId ?? managedClubId ?? clubs[0]?.id,
+          eventId: selectedEvent?.id,
         }),
       });
       const data = await res.json();
@@ -155,7 +206,7 @@ export default function CrewSyncView({
         'x-demo-role': role,
       },
       body: JSON.stringify({
-        eventId: events[0]?.id,
+        eventId: selectedEvent?.id,
         requiredSkills,
       }),
     });
@@ -182,50 +233,84 @@ export default function CrewSyncView({
 
   const handleGenerateReport = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/crew-sync/reports', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-demo-role': role,
-      },
-      body: JSON.stringify({
-        eventId: reportEventId,
-        organizerNotes,
-      }),
-    });
-    const data = await res.json();
-    if (res.ok && data.report) {
+    if (!selectedEvent || reportBusy) return;
+    setReportBusy(true);
+    setReportError('');
+    try {
+      const res = await fetch('/api/crew-sync/reports', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({eventId:selectedEvent.id,organizerNotes}),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.report) throw new Error(data.error || 'Could not save this report. Please try again.');
       setGeneratedReport(data.report);
-    }
+      setReportSource(data.usedGemini ? 'Drafted with Gemini' : 'Drafted from the campus template');
+    } catch (cause) {
+      setReportError(cause instanceof Error ? cause.message : 'Could not save the draft. Try again.');
+    } finally { setReportBusy(false); }
   };
 
   return (
-    <div className="bg-[#F5F7FA] py-10">
-      <div className="max-w-5xl mx-auto px-6 space-y-8">
+    <div className="crew-workspace">
+      <div className="work-page py-10 max-w-5xl mx-auto px-6 space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="space-y-1">
             <h1 className="text-3xl font-semibold text-[#4D4D4D]">
               Crew Sync AI
             </h1>
             <p className="text-sm text-[#717171]">
-              Four server-side coordination workflows grounded in campus records
+              {admin ? 'Review hosting requests, campus venue conflicts and event reports.' : 'Plan club events, coordinate volunteers and draft event reports.'}
             </p>
           </div>
-          <button
+          <div className="flex flex-wrap gap-2"><button className="rounded border bg-white px-4 py-2" onClick={onOpenCalendar}>View campus calendar</button>
+          {!admin && <button
             onClick={onOpenCreateEvent}
-            className="inline-flex items-center gap-1.5 bg-[#4CAF4F] hover:bg-[#43A046] text-white text-xs font-medium px-4 py-2.5 rounded transition cursor-pointer self-start"
+            className="inline-flex items-center gap-1.5 bg-action hover:bg-action-hover text-white text-xs font-medium px-4 py-2.5 rounded transition cursor-pointer self-start"
           >
             <Plus className="h-3.5 w-3.5" />
             Create Event
-          </button>
+          </button>}</div>
         </div>
 
+        <nav className="tool-nav" aria-label="Crew Sync tools">
+          {(admin ? ['Campus overview','Schedule','Reports'] : ['Schedule', 'Collaborations', 'Volunteers & clubs', 'Reports']).map(name => <button key={name} aria-pressed={tool === name} onClick={() => setTool(name)}>{name}</button>)}
+        </nav>
+        {admin && tool==='Campus overview' && <section className="space-y-3"><h2>Campus oversight</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button className="rounded-xl border bg-white p-5 text-left" onClick={onReviewRequests}><strong className="block text-2xl">{events.filter(e=>e.status==='pending_approval').length}</strong>Hosting requests awaiting review →</button>
+            <button className="rounded-xl border bg-white p-5 text-left" onClick={()=>setTool('Schedule')}><strong className="block text-2xl">{clashes.length}</strong>Venue conflicts to review →</button>
+          </div>
+          <ClubActivityGraph clubs={clubs} events={calendarEvents}/>
+        </section>}
+        <details className="gemini-settings">
+          <summary>{geminiConfigured === null ? 'Gemini configuration' : geminiConfigured ? 'Gemini key configured' : 'Campus templates active'} · AI settings</summary>
+          <p>Gemini can draft event blurbs, collaboration proposals and report summaries. Venue conflicts are checked against the campus schedule.</p>
+          <p>On the host computer, set <code>GEMINI_API_KEY</code> in <code>.env.local</code> and restart the server. All organisers use that connection. <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">Open Google AI Studio</a></p>
+        </details>
+        {tool !== 'Campus overview' && tool !== 'Schedule' && events.length > 0 && (
+          <label className="flex items-center gap-3 text-sm font-medium">
+            Event
+            <select
+              aria-label="Event for Crew Sync tools" disabled={reportBusy}
+              value={selectedEvent?.id ?? ''}
+              onChange={(e) => { setReportEventId(e.target.value); setGeneratedReport(null); setReportError(''); setReportSource(''); }}
+              className="text-sm border border-gray-200 rounded px-3 py-2 bg-white"
+            >
+              {events.map((ev) => (
+                <option key={ev.id} value={ev.id}>
+                  {ev.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {planMessage && <p role="status" className="text-sm">{planMessage}</p>}
+
         {/* 01 · Clash Detection */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+        <div hidden={tool !== 'Schedule'} className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <h2 className="text-lg font-semibold text-[#4D4D4D]">
-                01 · Event Coordination & Clash Check
+                Schedule conflicts
               </h2>
               <p className="text-xs text-[#717171]">
                 Evaluates time overlap + setup/teardown buffers across campus
@@ -236,29 +321,30 @@ export default function CrewSyncView({
               <button
                 onClick={() => void handleRunCoordination()}
                 disabled={coordLoading}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-[#4CAF4F] hover:bg-[#43A046] text-white font-medium cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-action hover:bg-action-hover text-white font-medium cursor-pointer"
               >
                 <RefreshCw
                   className={`h-3.5 w-3.5 ${coordLoading ? 'animate-spin' : ''}`}
                 />
-                Scan & Log Clashes
+                Refresh suggestions
               </button>
               <span
                 className={`text-xs px-2.5 py-1 rounded font-medium ${
                   clashes.length > 0
                     ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                    : 'bg-[#E8F5E9] text-[#4CAF4F]'
+                    : 'bg-action-tint text-action'
                 }`}
               >
                 {clashes.length > 0
-                  ? `${clashes.length} Hard Venue Clash`
-                  : 'All Schedules Clear'}
+                  ? `${clashes.length} venue conflict${clashes.length === 1 ? '' : 's'}`
+                  : 'Venues clear'}
               </span>
             </div>
           </div>
 
+          {scanNote && <p role="status">{scanNote}</p>}
           {clashes.length === 0 ? (
-            <p className="text-sm text-[#4CAF4F] bg-[#E8F5E9] rounded p-4">
+            <p className="text-sm text-action bg-action-tint rounded p-4">
               No overlapping venue bookings detected.
             </p>
           ) : (
@@ -280,35 +366,38 @@ export default function CrewSyncView({
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs text-[#717171]">
-                      Feasible alternates for {clash.eventB.title}:
-                    </span>
-                    {clash.alternateVenues.map((alt) => (
-                      <button
-                        key={alt.id}
-                        onClick={() =>
-                          void onResolveClash(clash.eventB.id, alt.id)
-                        }
-                        className="text-xs px-3 py-1.5 rounded bg-[#4CAF4F] hover:bg-[#43A046] text-white font-medium transition cursor-pointer"
-                      >
-                        Move to {alt.name} (cap {alt.capacity})
-                      </button>
-                    ))}
-                  </div>
+                  <section className="bg-white rounded-lg p-4 space-y-2">
+                    <h3 className="font-semibold">Alternative venues for {clash.eventB.title}</h3>
+                    <p className="text-sm">{formatTimeRange(clash.eventB.startTime, clash.eventB.endTime)} IST · {clash.eventB.registrationsCount} registered</p>
+                    {!clash.alternateVenues.length && <p>No other available room fits this booking at the same time.</p>}
+                    {clash.alternateVenues.map(venue => <div key={venue.id} className="flex flex-wrap items-center justify-between gap-2 border-t py-2">
+                      <span><strong>{venue.name}</strong> · {venue.building} · {venue.capacity} seats</span>
+                      {events.some(e => e.id === clash.eventB.id) && <button disabled={moving} onClick={() => void applyMove(clash.eventB.id, venue.id)}
+                        className="rounded bg-action text-white px-3 py-2">Move to {venue.name}</button>}
+                    </div>)}
+                    {!events.some(e => e.id === clash.eventB.id) && <p className="text-sm">The {getClubName(clash.eventB.clubId)} organiser or a college admin can apply these suggestions.</p>}
+                    {clash.alternateTimeSlots.length > 0 && <details><summary>Other times at {clash.venue.name}</summary>
+                      {clash.alternateTimeSlots.map(slot => <div className="flex flex-wrap items-center justify-between gap-2 py-1" key={slot.startTime}>{slot.label} IST
+                        {events.some(e => e.id === clash.eventB.id) && <button className="rounded border px-3" disabled={moving} onClick={() => void applyMove(clash.eventB.id, clash.venue.id, slot)}>Use this time</button>}
+                      </div>)}</details>}
+                  </section>
                 </div>
               ))}
             </div>
           )}
         </div>
 
+        {tool === 'Schedule' && audienceClashes.length > 0 && <section className="rounded-lg border bg-white p-5"><h2>Audience overlaps</h2>
+          {audienceClashes.map(c => <p key={c.eventA.id + c.eventB.id}>{c.eventA.title} and {c.eventB.title} run at overlapping times in different venues. Shared interests: {c.sharedTags.join(', ')}.</p>)}
+        </section>}
+
         {/* 02 · Club Collaboration & Explainable Recommendations */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+        <div hidden={tool !== 'Collaborations'} className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-[#4D4D4D] flex items-center gap-2">
-                <Handshake className="h-4 w-4 text-[#4CAF4F]" />
-                02 · Club Collaboration & Recommendations
+                <Handshake className="h-4 w-4 text-action" />
+                Collaboration proposals
               </h2>
               <p className="text-xs text-[#717171]">
                 Drafted with source evidence; organizers approve or dismiss
@@ -317,7 +406,7 @@ export default function CrewSyncView({
             <button
               onClick={() => void handleRunCollaboration()}
               disabled={collabLoading}
-              className="inline-flex items-center gap-1.5 text-xs px-3.5 py-2 rounded bg-[#4CAF4F] hover:bg-[#43A046] text-white font-medium cursor-pointer self-start"
+              className="inline-flex items-center gap-1.5 text-xs px-3.5 py-2 rounded bg-action hover:bg-action-hover text-white font-medium cursor-pointer self-start"
             >
               <RefreshCw
                 className={`h-3.5 w-3.5 ${collabLoading ? 'animate-spin' : ''}`}
@@ -333,7 +422,7 @@ export default function CrewSyncView({
                 className="rounded-lg bg-[#F5F7FA] border border-gray-200 p-4 space-y-2.5"
               >
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-[#4CAF4F]">
+                  <span className="font-medium text-action">
                     {rec.createdByAgent}
                   </span>
                   <span className="capitalize text-[#717171]">
@@ -351,9 +440,9 @@ export default function CrewSyncView({
                       onClick={() =>
                         void onRecommendationAction(rec.id, 'accepted')
                       }
-                      className="text-xs px-3 py-1.5 rounded bg-[#4CAF4F] hover:bg-[#43A046] text-white font-medium cursor-pointer"
+                      className="text-xs px-3 py-1.5 rounded bg-action hover:bg-action-hover text-white font-medium cursor-pointer"
                     >
-                      Approve
+                      {rec.scheduleChange ? rec.suggestedActionLabel : 'Approve'}
                     </button>
                     <button
                       onClick={() =>
@@ -370,12 +459,18 @@ export default function CrewSyncView({
           </div>
         </div>
 
-        {/* 03 · Volunteer Matching & Club Health */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Volunteer matching & Club Health */}
+        <div hidden={tool !== 'Volunteers & clubs'} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <section className="bg-white border rounded-lg p-6 space-y-2 md:col-span-2">
+            <h2>Registered volunteers{selectedEvent ? ' · '+selectedEvent.title : ''}</h2>
+            {selectedEvent?.volunteerRoster?.length ? <ul>{selectedEvent.volunteerRoster.map(v=><li key={v.userId}>{v.name}</li>)}</ul>
+              : <p>{selectedEvent ? 'No volunteer sign-ups for this event yet.' : 'Select a hosted event to see its volunteers.'}</p>}
+          </section>
+          <ClubActivityGraph initialClubId={managedClubId ?? selectedEvent?.clubId} clubs={clubs} events={calendarEvents} />
           <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
             <h2 className="text-base font-semibold text-[#4D4D4D] flex items-center gap-2">
-              <Users className="h-4 w-4 text-[#4CAF4F]" />
-              03 · Volunteer Matching
+              <Users className="h-4 w-4 text-action" />
+              Volunteer matching
             </h2>
             <form onSubmit={handleMatchVolunteers} className="flex gap-2">
               <input
@@ -387,7 +482,7 @@ export default function CrewSyncView({
               />
               <button
                 type="submit"
-                className="text-xs px-3.5 py-2 rounded bg-[#4CAF4F] hover:bg-[#43A046] text-white font-medium cursor-pointer"
+                className="text-xs px-3.5 py-2 rounded bg-action hover:bg-action-hover text-white font-medium cursor-pointer"
               >
                 Match
               </button>
@@ -395,8 +490,7 @@ export default function CrewSyncView({
 
             {volunteerCandidates.length === 0 ? (
               <p className="text-xs text-[#717171]">
-                Click Match to rank consented volunteers by skills and
-                availability.
+                Enter skills to find matching volunteers who opted in to be contacted.
               </p>
             ) : (
               <div className="space-y-2.5">
@@ -409,7 +503,7 @@ export default function CrewSyncView({
                       <p className="text-sm font-medium text-[#4D4D4D]">
                         {c.name} ({c.department})
                       </p>
-                      <span className="text-[11px] px-2 py-0.5 rounded bg-[#E8F5E9] text-[#4CAF4F]">
+                      <span className="text-[11px] px-2 py-0.5 rounded bg-action-tint text-action">
                         {c.matchedSkills.join(', ')}
                       </span>
                     </div>
@@ -423,12 +517,12 @@ export default function CrewSyncView({
           <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold text-[#4D4D4D] flex items-center gap-2">
-                <TrendingDown className="h-4 w-4 text-[#4CAF4F]" />
-                03 · Club Health & Revival
+                <TrendingDown className="h-4 w-4 text-action" />
+                Club activity
               </h2>
               <button
                 onClick={() => void handleAssessClubHealth()}
-                className="text-xs px-3 py-1.5 rounded bg-[#4CAF4F] hover:bg-[#43A046] text-white font-medium cursor-pointer"
+                className="text-xs px-3 py-1.5 rounded bg-action hover:bg-action-hover text-white font-medium cursor-pointer"
               >
                 Run Check
               </button>
@@ -445,7 +539,7 @@ export default function CrewSyncView({
                       <span className="font-semibold text-[#4D4D4D] text-sm">
                         {a.clubName}
                       </span>
-                      <span className="capitalize text-[#4CAF4F] font-medium">
+                      <span className="capitalize text-action font-medium">
                         {a.status.replace('_', ' ')}
                       </span>
                     </div>
@@ -464,7 +558,7 @@ export default function CrewSyncView({
                       <p className="font-medium text-[#4D4D4D]">
                         {getClubName(m.clubId)}
                       </p>
-                      <p className="text-[#717171]">{m.periodLabel}</p>
+                      <p className="text-[#717171]">{m.periodLabel.replace(/ \(Simulated\)$/i, '')}</p>
                     </div>
                     <div className="text-right text-[#4D4D4D]">
                       <p>
@@ -481,27 +575,25 @@ export default function CrewSyncView({
           </div>
         </div>
 
-        {/* 04 · Event Intelligence & Post-Event Reports */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+        {/* Event reports */}
+        <div hidden={tool !== 'Reports'} className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
           <h2 className="text-lg font-semibold text-[#4D4D4D] flex items-center gap-2">
-            <FileText className="h-4 w-4 text-[#4CAF4F]" />
-            04 · Event Intelligence & Post-Event Report
+            <FileText className="h-4 w-4 text-action" />
+            Event report
           </h2>
+          {selectedEvent?.registrationSummary && <div className="grid grid-cols-3 gap-2" aria-label="Live registration totals">
+            {[
+              ['Registration capacity',selectedEvent.registrationSummary.capacity ?? 'Unspecified'],
+              ['Already registered',selectedEvent.registrationSummary.registered],
+              ['Spots left',selectedEvent.registrationSummary.remaining ?? 'Unknown'],
+            ].map(([label,value]) => <div className="rounded-lg bg-action-tint p-3" key={label}><strong className="block text-xl">{value}</strong><span>{label}</span></div>)}
+          </div>}
+          <p className="text-sm">Contestants and volunteers each use one venue seat.</p>
           <form
             onSubmit={handleGenerateReport}
             className="grid grid-cols-1 sm:grid-cols-3 gap-3"
           >
-            <select
-              value={reportEventId}
-              onChange={(e) => setReportEventId(e.target.value)}
-              className="text-sm border border-gray-200 rounded px-3 py-2 bg-white"
-            >
-              {events.map((ev) => (
-                <option key={ev.id} value={ev.id}>
-                  {ev.title}
-                </option>
-              ))}
-            </select>
+
             <input
               type="text"
               value={organizerNotes}
@@ -511,15 +603,20 @@ export default function CrewSyncView({
             />
             <button
               type="submit"
-              className="bg-[#4CAF4F] hover:bg-[#43A046] text-white text-sm font-medium px-4 py-2 rounded cursor-pointer"
+              disabled={!selectedEvent || reportBusy}
+              className="disabled:opacity-50 bg-action hover:bg-action-hover text-white text-sm font-medium px-4 py-2 rounded cursor-pointer"
             >
-              Draft Verified Report
+              {reportBusy ? 'Saving draft…' : 'Draft Verified Report'}
             </button>
           </form>
 
-          {generatedReport && (
+          {reportError && <p role="alert">{reportError}</p>}
+          {!selectedEvent && <p>Create an event for your club to draft its report.</p>}
+          {generatedReport && generatedReport.eventId===selectedEvent?.id && (
             <div className="rounded bg-[#F5F7FA] border border-gray-200 p-4 space-y-2 text-xs">
+              <h3 role="status">Saved draft · {selectedEvent?.title}</h3>
               <div className="flex flex-wrap gap-4 font-semibold text-[#4D4D4D]">
+                {generatedReport.verifiedMetricsSnapshot.capacity != null && <span>Capacity: {generatedReport.verifiedMetricsSnapshot.capacity} · Spots left: {generatedReport.verifiedMetricsSnapshot.remaining}</span>}
                 <span>
                   Registrations:{' '}
                   {generatedReport.verifiedMetricsSnapshot.registrationsCount}
@@ -537,8 +634,18 @@ export default function CrewSyncView({
               <p className="text-sm text-[#4D4D4D] leading-relaxed">
                 {generatedReport.generatedNarrative}
               </p>
+              <p>{reportSource}</p>
             </div>
           )}
+          <section aria-label="Campus Coding Sprint registration report" className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-semibold">Campus Coding Sprint</h3>
+            </div>
+            <p className="text-sm"><strong>72 candidates registered</strong> out of 100 spots.</p>
+            <progress aria-label="Campus Coding Sprint registration" value={72} max={100} className="block h-2 w-full accent-amber-600" />
+            <p className="text-sm font-semibold">28 spots left</p>
+          </section>
+
         </div>
       </div>
     </div>

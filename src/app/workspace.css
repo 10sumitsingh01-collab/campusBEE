@@ -1,0 +1,141 @@
+:root {
+  --page: #ffffff;
+  --ink: #111315;
+  --muted: #334155;
+  --line: rgba(15,23,42,.10);
+  --action: #111111;
+  --action-deep: #353532;
+  --sky: #1b78d6;
+  --lime: #b9f328;
+  --tint: #f3f6fa;
+}
+.workspace { min-height: 100dvh; background: var(--page); color: var(--ink); --role-soft: #fff1d4; --role-ink: #634415; --role-art: url('/posters/design.webp'); }
+.workspace[data-role=club_organizer] { --role-soft: #ffebd7; --role-ink: #743810; --role-art: url('/posters/competition.webp'); }
+.workspace[data-role=judge] { --role-soft: #e1edff; --role-ink: #213e72; --role-art: url('/posters/workshop.webp'); }
+.workspace[data-role=college_admin] { --role-soft: #e2f2e6; --role-ink: #214d39; --role-art: url('/campus-fair.jpg'); }
+.workspace-header { background: #fff; border-bottom: 1px solid var(--line); }
+.workspace-identity, .workspace-nav, .work-page { width: min(100%, 1240px); margin-inline: auto; padding-inline: clamp(16px, 4vw, 56px); }
+.workspace-identity, .workspace-brand, .workspace-account, .workspace-account button, .workspace-nav, .workspace-nav button, .tool-nav { display: flex; align-items: center; }
+.workspace-identity { min-height: 68px; gap: .8rem; }
+.workspace-brand { gap: .55rem; color: #111111; font-size: 1.33rem; font-weight: 780; letter-spacing: -.055em; }
+.bee-logo { display: block; width: 42px; height: 42px; flex: none; object-fit: contain; background: white; border-radius: 50%; }
+.workspace-role { background: var(--role-soft); color: var(--role-ink); font-size: .78rem; font-weight: 700; padding: .34rem .75rem; border-radius: 99px; }
+.workspace-account { gap: .4rem; margin-left: auto; }
+.workspace-account button { min-height: 42px; min-width: 42px; justify-content: center; gap: .45rem; padding: .5rem .65rem; border-radius: 9px; font-weight: 600; font-size: .9rem; }
+.workspace-account button:hover, .workspace-nav button:hover { background: var(--tint); }
+.workspace-nav { gap: .25rem; flex-wrap: wrap; padding-block: .3rem .65rem; }
+.workspace-nav button { gap: .4rem; min-height: 39px; padding: .4rem .78rem; border-radius: 9px; font-weight: 600; font-size: .88rem; color: var(--muted); }
+.workspace-nav button[aria-current=page] { background: #111111; color: white; }
+.nav-count { background: #ffe0d1; color: #863511; border-radius: 12px; padding: 0 .4rem; }
+.mobile-sections { display: none; }
+.skip-content { position: absolute; z-index: 10; transform: translateY(-140%); left: 1rem; padding: .6rem 1rem; background: white; color: var(--action); border-radius: 8px; }
+.skip-content:focus { transform: translateY(5px); }
+.workspace [hidden] { display: none !important; }
+.workspace :focus-visible, .campus-discover :focus-visible, .crew-auth-dialog :focus-visible { outline: 3px solid #b46207; outline-offset: 3px; }
+#workspace-main:focus { outline: none; }
+button:enabled, summary, select { cursor: pointer; }
+button:disabled { cursor: default; }
+.work-page { max-width: 1240px; padding-block: clamp(18px, 3vw, 34px) 4rem; }
+.work-page > :first-child:has(h1) {
+  position: relative; isolation: isolate; overflow: hidden; padding: clamp(22px, 3.4vw, 43px);
+  border-radius: 22px; background: var(--role-soft); min-height: 146px;
+  align-content: center;
+}
+.work-page > :first-child:has(h1)::before {
+  content: ''; position: absolute; z-index: -1; inset: 0 0 0 52%; pointer-events: none;
+  background: linear-gradient(90deg, var(--role-soft), transparent 120%), var(--role-art) center / cover;
+  opacity: .31;
+}
+.work-page h1 { font-size: clamp(1.9rem, 4vw, 3.1rem); line-height: 1.06; font-weight: 750; letter-spacing: -.055em; color: var(--role-ink); overflow-wrap: anywhere; }
+.work-page > :first-child:has(h1) p { color: var(--role-ink); max-width: 65ch; font-size: 1rem; line-height: 1.5; margin-top: .56rem; }
+.work-page h2 { font-size: 1.22rem; letter-spacing: -.025em; }
+.work-page :where(div, form, section, article).bg-white.border.rounded-lg { border-radius: 16px; border-color: var(--line); box-shadow: 0 4px 16px #33285b07; }
+.workspace :where(input:not([type=checkbox],[type=radio],[type=file]), select, textarea), .workspace-dialog :where(input:not([type=checkbox],[type=radio],[type=file]), select, textarea) { min-width: 0; max-width: 100%; min-height: 42px; font-size: .96rem; border-radius: 8px; }
+.work-page button.rounded, .workspace-dialog button.rounded { border-radius: 8px; font-size: .87rem; min-height: 39px; }
+.work-page label { color: var(--ink); }
+.work-page .text-xs, .workspace-dialog .text-xs { font-size: .84rem; line-height: 1.48; }
+.tool-nav { flex-wrap: wrap; gap: .45rem; }
+.tool-nav button { border: 1px solid var(--line); background: white; border-radius: 99px; padding: .55rem 1rem; font-size: .92rem; font-weight: 600; }
+.tool-nav button[aria-pressed=true] { background: var(--action); border-color: var(--action); color: white; }
+.workspace-dialog { margin: auto; position: fixed; inset: 0; border: 0; border-radius: 20px; padding: 0; width: min(680px, calc(100% - 28px)); max-height: calc(100dvh - 32px); background: white; color: var(--ink); }
+.workspace-dialog.profile { width: min(450px, calc(100% - 28px)); }
+.workspace-dialog::backdrop { background: #17122bb3; backdrop-filter: blur(4px); }
+@media (max-width: 760px) {
+  .workspace-identity { min-height: 59px; gap: .5rem; }
+  .workspace-account { gap: 0; }
+  .workspace-account .account-profile span { display: none; }
+  .workspace-nav > button { display: none; }
+  .mobile-sections { display: flex; gap: .7rem; align-items: center; width: 100%; font-size: .85rem; font-weight: 650; color: var(--muted); }
+  .mobile-sections select { flex: 1; width: 0; padding: .36rem .6rem; border: 1px solid var(--line); color: var(--ink); background: white; }
+  .work-page > :first-child:has(h1) { border-radius: 15px; }
+  .work-page :where(.p-6) { padding: 1rem; }
+  .crew-workspace label:has(select) { flex-wrap: wrap; }
+}
+@media (max-width: 380px) {
+  .workspace-identity, .workspace-nav { padding-inline: 10px; }
+  .workspace-brand { font-size: 1.15rem; }
+  .workspace-role { padding-inline: .5rem; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .work-page, .campus-detail, .crew-auth-dialog[open], .workspace-dialog[open] { animation: workspace-enter .25s ease-out; }
+
+  .workspace button:enabled:active, .campus-discover button:enabled:active { translate: 0 1px; }
+  @keyframes workspace-enter { from { opacity: .45; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+}
+.connection-state { width: min(100% - 32px, 420px); margin: 12vh auto; padding: 2rem; border: 1px solid var(--line); border-radius: 18px; }
+.connection-state h1 { font-size: 1.55rem; font-weight: 700; margin: .9rem 0 .4rem; }
+.connection-state button { margin-top: 1rem; border-radius: 9px; padding: .6rem 1rem; background: var(--action); color: white; }
+.managed-event { overflow: hidden; }
+.managed-poster { margin: -1.5rem -1.5rem .9rem; height: clamp(100px, 11vw, 160px); }
+@media (max-width: 760px) { .managed-poster { margin: -1rem -1rem .8rem; } }
+.month-board { background: white; padding: clamp(.8rem, 2vw, 1.6rem); border: 1px solid var(--line); border-radius: 16px; }
+.month-board header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; }
+.month-board header button { width:42px; height:42px; background:var(--tint); border-radius:50%; font-size:1.4rem; }
+.month-grid { display:grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap:3px; }
+.month-grid small { text-align:center; color:var(--muted); }
+.month-grid button { display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:.25rem; min-height:44px; background:var(--page); border-radius:6px; }
+.month-grid button:hover,.month-grid button[aria-pressed=true] { background:var(--tint); outline:1px solid var(--action); }
+.month-grid b { background:var(--action);color:white;border-radius:50%;font-size:.7rem;min-width:1.1rem; }
+
+.workspace-nav .workspace-ai-pill {
+  border: 1px solid var(--line); background: white; color: var(--ink);
+  font-size: 13px; font-weight: 500; border-radius: 8px;
+}
+.workspace-nav .workspace-ai-pill[aria-current=page] { background: var(--ink); color: white; }
+.discovery-nav-menu{position:relative;z-index:5;color:var(--ink);font-size:.88rem;font-weight:600}
+.discovery-nav-menu summary{display:flex;align-items:center;gap:.5rem;cursor:pointer;list-style:none;padding:.6rem .8rem}
+.discovery-nav-menu summary::-webkit-details-marker{display:none}
+.discovery-nav-menu>div{position:absolute;top:100%;left:0;width:max-content;min-width:190px;background:white;border:1px solid #dfe3ea;border-radius:14px;padding:.4rem;box-shadow:0 12px 30px #241c3a24}
+.discovery-nav-menu button{width:100%}
+.discovery-nav-menu.mobile,.workspace[data-role=student] .mobile-sections{display:none}
+@media(max-width:760px){.discovery-nav-menu.activity{display:none}.discovery-nav-menu.mobile{display:block}}
+@media(max-width:380px){.workspace-brand{gap:.3rem}.workspace-brand .bee-logo{width:32px;height:32px}.workspace-account button{padding-inline:.4rem}}
+
+
+/* Shared campus identity and workspace navigation */
+.workspace-header {
+  width: min(calc(100% - 32px), 1140px); margin: 14px auto 0;
+  border: 1px solid var(--line); border-radius: 24px; position: relative; z-index: 8;
+  box-shadow: 0 5px 22px #0f172a0c;
+}
+.workspace-identity,.workspace-nav { padding-inline: clamp(12px,2vw,26px); }
+.workspace-role { background: #e6f7ff; color: #12426d; }
+.workspace-nav .workspace-ai-pill { background: #e9fbb9; border-color: #bddc83; border-radius: 999px; }
+.workspace-nav button[aria-current=page] { background: var(--ink); border-radius: 999px; }
+.workspace { --role-soft: #e3f2ff; --role-ink: #113656; --role-art: url('/campus-panorama.webp'); }
+.workspace[data-role=club_organizer] { --role-soft: #ebf9ce; --role-ink: #293918; --role-art: url('/events/competition.jpg'); }
+.workspace[data-role=judge] { --role-art: url('/events/workshop.jpg'); }
+.workspace[data-role=college_admin] { --role-soft: #e0f1ff; --role-ink: #163b59; --role-art: url('/campus-panorama.webp'); }
+@media (min-width: 1150px) {
+  .workspace[data-role=student] .workspace-header { display:flex; align-items:center; border-radius:999px; }
+  .workspace[data-role=student] .workspace-identity { display:contents; }
+  .workspace[data-role=student] .workspace-brand { margin-left:18px; }
+  .workspace[data-role=student] .workspace-role { margin-inline:8px; }
+  .workspace[data-role=student] .workspace-nav { width:auto; padding:10px 0; }
+  .workspace[data-role=student] .workspace-account { order:2; margin-right:12px; }
+}
+@media (max-width: 420px) {
+  .workspace-header { width:calc(100% - 12px); margin-block-start:6px; }
+  .workspace-identity { gap:.3rem; padding-inline:8px; }
+  .workspace-account button { min-width:36px; padding-inline:.3rem; }
+}

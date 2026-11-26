@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { connection, NextResponse } from 'next/server';
 import { SEED_CLUBS, SEED_EVENTS, SEED_VENUES } from '@/lib/data/seed';
 import { getDataMode, getStore } from '@/lib/server/store';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 export async function GET() {
+  await connection();
   const mode = getDataMode();
 
   if (mode === 'supabase') {
@@ -78,8 +79,8 @@ export async function GET() {
 
   const store = getStore();
   return NextResponse.json({
-    clubs: store.clubs,
+    clubs: store.clubs.filter(c => c.status === 'active'),
     venues: store.venues,
-    events: store.events.filter((e) => e.status === 'published'),
+    events: store.events.filter(e => e.status === 'published' || e.status === 'ongoing'),
   });
 }

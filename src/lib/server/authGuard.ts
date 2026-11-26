@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getDataMode, getStore } from '@/lib/server/store';
@@ -69,14 +70,12 @@ export async function getRequestUser(
     };
   }
 
-  // Local seed mode: allow testing any role via x-demo-role header
-  const headerRole = request.headers.get('x-demo-role') as UserRole | null;
-  const resolvedRole: UserRole =
-    headerRole && VALID_ROLES.includes(headerRole)
-      ? headerRole
-      : 'club_organizer';
-
-  return getStore().users[resolvedRole];
+  const token = request.cookies.get('campus_session')?.value;
+  if (!token) return null;
+  const store = getStore();
+  const digest = sessionDigest(token);
+  const session = store.sessions.find(s => s.digest === digest && s.expires > Date.now());
+  return session ? store.accounts.find(a => a.profile.id === session.userId)?.profile ?? null : null;
 }
 
 export function unauthorizedResponse(message = 'Authentication required') {
@@ -111,4 +110,8 @@ export function canManageClub(user: UserProfile, clubId: string): boolean {
     return Boolean(user.managedClubIds?.includes(clubId));
   }
   return false;
+}
+
+export function sessionDigest(token: string) {
+  return createHash('sha256').update(token).digest('hex');
 }

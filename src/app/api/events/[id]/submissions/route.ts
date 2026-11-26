@@ -1,3 +1,4 @@
+import { saveDemoStore } from '@/lib/server/store';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   canManageClub,
@@ -46,6 +47,14 @@ export async function GET(
       submittedAt: s.submitted_at,
     }));
 
+    if (user.role === 'judge') {
+      const { data: assignments, error } = await supabase.from('judge_assignments')
+        .select('id,submission_id').eq('event_id', eventId).eq('judge_id', user.id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ submissions: submissions.map(s => ({
+        ...s, assignmentId: assignments?.find(a => a.submission_id === s.id)?.id,
+      })).filter(s => s.assignmentId) });
+    }
     return NextResponse.json({ submissions });
   }
 
@@ -68,7 +77,9 @@ export async function GET(
         .map((ja) => ja.submissionId)
     );
     return NextResponse.json({
-      submissions: all.filter((s) => assignedIds.has(s.id)),
+      submissions: all.filter(s => assignedIds.has(s.id)).map(s => ({
+        ...s, teamName: store.teams.find(t => t.id === s.teamId)?.name, assignmentId: store.judgeAssignments.find(a => a.submissionId === s.id && a.judgeId === user.id)?.id,
+      })),
     });
   }
 
@@ -158,6 +169,7 @@ export async function POST(
           team_id: membership.team_id,
           title: body.title.trim(),
           description: body.description?.trim() ?? '',
+          ...(typeof body.problemStatement==='string' ? {problem_statement:body.problemStatement.trim()} : {}),
           links: body.links ?? [],
           file_urls: body.fileUrls ?? [],
           submitted_by: user.id,
@@ -233,6 +245,7 @@ export async function POST(
     teamId: team.id,
     title: body.title.trim(),
     description: body.description?.trim() ?? '',
+    problemStatement:body.problemStatement?.trim()??'',
     links: body.links ?? [],
     fileUrls: body.fileUrls ?? [],
     submittedBy: user.id,
@@ -245,6 +258,7 @@ export async function POST(
     store.submissions.push(submission);
   }
 
+  saveDemoStore(store);
   return NextResponse.json(
     { submission },
     { status: existingIdx >= 0 ? 200 : 201 }

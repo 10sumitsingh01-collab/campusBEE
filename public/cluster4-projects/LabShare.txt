@@ -1,0 +1,12 @@
+LabShare
+Team Relay | CLUSTER4 Build/24
+Prototype proposal for the campus showcase
+
+Problem
+Students struggle to find equipment across labs.
+
+Proposed design
+Track inventory and reservation windows. Reject overlapping reservations for the same kit.
+
+Validation plan
+Request the same device from two sessions and verify that only one booking succeeds.

@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "start:campus": "CAMPUS_DEMO_FILE=.campus-data/demo.json next start --port 3001",
     "lint": "eslint"
   },
   "dependencies": {
