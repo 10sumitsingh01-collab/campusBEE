@@ -1,20 +1,23 @@
 import { connection, NextResponse } from 'next/server';
 import { getDataMode, getStore } from '@/lib/server/store';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 
 export async function GET() {
   await connection();
   const mode = getDataMode();
 
   if (mode === 'supabase') {
-    const supabase = await createServerSupabaseClient();
-    if (supabase) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (url && key) {
+      // Fixed public projection. RLS on direct database clients stays in effect.
+      const supabase = createClient(url, key, {auth:{persistSession:false,autoRefreshToken:false}});
       const [clubsRes, venuesRes, eventsRes] = await Promise.all([
-        supabase.from('clubs').select('*').eq('status', 'active').order('name'),
-        supabase.from('venues').select('*').order('name'),
+        supabase.from('clubs').select('id,name,slug,description,category,interests,capabilities,status').eq('status', 'active').order('name'),
+        supabase.from('venues').select('id,name,building,capacity,equipment').order('name'),
         supabase
           .from('events')
-          .select('*')
+          .select('id,club_id,title,description,event_type,tags,eligibility_departments,eligibility_years,min_team_size,max_team_size,registration_deadline,submission_deadline,start_time,end_time,setup_buffer_minutes,teardown_buffer_minutes,venue_id,status')
           .in('status', ['published', 'ongoing'])
           .order('start_time'),
       ]);
@@ -30,7 +33,6 @@ export async function GET() {
             interests: c.interests ?? [],
             capabilities: c.capabilities ?? [],
             status: c.status,
-            ownerId: c.owner_id,
             memberCount: 0,
           })),
           venues: (venuesRes.data ?? []).map((v) => ({
