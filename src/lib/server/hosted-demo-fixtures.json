@@ -1,0 +1,1075 @@
+{
+  "clubs": [
+    {
+      "id": "club-coding",
+      "name": "Coding Club",
+      "slug": "coding-club",
+      "description": "Building software, hosting hackathons, and mentoring peer developers across campus.",
+      "category": "Technical",
+      "interests": [
+        "AI/ML",
+        "Web Engineering",
+        "Hackathons",
+        "Open Source"
+      ],
+      "capabilities": [
+        "Full-Stack Mentorship",
+        "Judging Pipelines",
+        "Cloud Credits"
+      ],
+      "status": "active",
+      "memberCount": 142,
+      "ownerId": "fixture-person-1"
+    },
+    {
+      "id": "club-robotics",
+      "name": "Robotics Club",
+      "slug": "robotics-club",
+      "description": "Autonomous systems, embedded hardware, ROS, and hands-on mechatronics prototyping.",
+      "category": "Hardware & Engineering",
+      "interests": [
+        "Robotics",
+        "Embedded Systems",
+        "AI",
+        "Hardware"
+      ],
+      "capabilities": [
+        "Hardware Kits",
+        "Soldering & Fabrication",
+        "ROS Workshops"
+      ],
+      "status": "active",
+      "memberCount": 58,
+      "ownerId": "fixture-person-2"
+    },
+    {
+      "id": "club-design",
+      "name": "Design Club",
+      "slug": "design-club",
+      "description": "UI/UX craft, design systems, user research, and visual storytelling for campus initiatives.",
+      "category": "Design & Media",
+      "interests": [
+        "UI/UX",
+        "Product Design",
+        "Prototyping",
+        "Media"
+      ],
+      "capabilities": [
+        "Figma Systems",
+        "Usability Critiques",
+        "Event Branding"
+      ],
+      "status": "active",
+      "memberCount": 94,
+      "ownerId": "fixture-person-3"
+    },
+    {
+      "id": "027a2a3c-8111-4ba5-bdf0-04c2d89a5026",
+      "name": "node",
+      "slug": "027a2a3c-8111-4ba5-bdf0-04c2d89a5026",
+      "description": "",
+      "category": "Student organization",
+      "interests": [],
+      "capabilities": [],
+      "status": "active",
+      "memberCount": 1,
+      "ownerId": "fixture-person-4"
+    },
+    {
+      "id": "ac1ea8c2-7405-49f0-af21-291cf0d703b2",
+      "name": "NODEE",
+      "slug": "ac1ea8c2-7405-49f0-af21-291cf0d703b2",
+      "description": "",
+      "category": "Student organization",
+      "interests": [],
+      "capabilities": [],
+      "status": "active",
+      "memberCount": 1,
+      "ownerId": "fixture-person-5"
+    },
+    {
+      "id": "60b413cc-370e-4dd9-a907-216754ab1656",
+      "name": "CLUSTER4",
+      "slug": "60b413cc-370e-4dd9-a907-216754ab1656",
+      "description": "",
+      "category": "Student organization",
+      "interests": [],
+      "capabilities": [],
+      "status": "active",
+      "memberCount": 1,
+      "ownerId": "fixture-person-6"
+    }
+  ],
+  "venues": [
+    {
+      "id": "venue-main-auditorium",
+      "name": "Main Auditorium",
+      "building": "Central Academic Block",
+      "capacity": 400,
+      "equipment": [
+        "Projector",
+        "Stage Audio",
+        "Livestream Rig",
+        "High-Speed WiFi"
+      ]
+    },
+    {
+      "id": "venue-design-lab",
+      "name": "Design Lab",
+      "building": "Innovation Wing 2F",
+      "capacity": 80,
+      "equipment": [
+        "Workstations",
+        "Whiteboards",
+        "4K Display"
+      ]
+    },
+    {
+      "id": "venue-seminar-b",
+      "name": "Seminar Hall B",
+      "building": "Engineering Block 1F",
+      "capacity": 150,
+      "equipment": [
+        "Projector",
+        "Podium Mic",
+        "Power Strips"
+      ]
+    },
+    {
+      "id": "venue-maker-studio",
+      "name": "Maker Studio",
+      "building": "Robotics & Hardware Wing",
+      "capacity": 60,
+      "equipment": [
+        "Soldering Stations",
+        "3D Printers",
+        "Oscilloscopes"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "evt-ai-hackathon",
+      "clubId": "club-coding",
+      "title": "AI Hackathon",
+      "description": "A 6-hour sprint building practical campus AI solutions with mentors, rubric judging, and live demos.",
+      "eventType": "Hackathon",
+      "tags": [
+        "AI",
+        "Full-Stack",
+        "Hackathon",
+        "Frontend"
+      ],
+      "eligibilityDepartments": [
+        "All Departments"
+      ],
+      "eligibilityYears": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "minTeamSize": 2,
+      "maxTeamSize": 4,
+      "registrationDeadline": "2026-11-27T23:59:00+05:30",
+      "submissionDeadline": "2026-11-28T15:30:00+05:30",
+      "startTime": "2026-11-28T10:00:00+05:30",
+      "endTime": "2026-11-28T16:00:00+05:30",
+      "setupBufferMinutes": 30,
+      "teardownBufferMinutes": 30,
+      "venueId": "venue-main-auditorium",
+      "status": "published",
+      "registrationsCount": 116
+    },
+    {
+      "id": "evt-robotics-workshop",
+      "clubId": "club-robotics",
+      "title": "Robotics Workshop",
+      "description": "Hands-on microcontroller and autonomous navigation workshop for beginner and intermediate builders.",
+      "eventType": "Workshop",
+      "tags": [
+        "Robotics",
+        "Hardware",
+        "Embedded",
+        "AI"
+      ],
+      "eligibilityDepartments": [
+        "CSE",
+        "ECE",
+        "ME",
+        "EEE"
+      ],
+      "eligibilityYears": [
+        1,
+        2,
+        3
+      ],
+      "minTeamSize": 1,
+      "maxTeamSize": 2,
+      "registrationDeadline": "2026-11-27T20:00:00+05:30",
+      "startTime": "2026-11-28T12:00:00+05:30",
+      "endTime": "2026-11-28T15:00:00+05:30",
+      "setupBufferMinutes": 30,
+      "teardownBufferMinutes": 30,
+      "venueId": "venue-design-lab",
+      "status": "published",
+      "registrationsCount": 34
+    },
+    {
+      "id": "evt-uiux-workshop",
+      "clubId": "club-design",
+      "title": "UI/UX Workshop",
+      "description": "Interactive Figma prototyping and rapid product critique session tailored for hackathon teams.",
+      "eventType": "Workshop",
+      "tags": [
+        "UI/UX",
+        "Design",
+        "Figma",
+        "Product"
+      ],
+      "eligibilityDepartments": [
+        "All Departments"
+      ],
+      "eligibilityYears": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "minTeamSize": 1,
+      "maxTeamSize": 1,
+      "registrationDeadline": "2026-11-29T23:59:00+05:30",
+      "startTime": "2026-11-30T14:00:00+05:30",
+      "endTime": "2026-11-30T16:00:00+05:30",
+      "setupBufferMinutes": 15,
+      "teardownBufferMinutes": 15,
+      "venueId": "venue-design-lab",
+      "status": "published",
+      "registrationsCount": 52
+    },
+    {
+      "id": "evt-2d75c62e",
+      "clubId": "club-coding",
+      "title": "Intercollege demo rehearsal",
+      "description": "",
+      "eventType": "Competition",
+      "tags": [],
+      "eligibilityDepartments": [
+        "All Departments"
+      ],
+      "eligibilityYears": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "minTeamSize": 1,
+      "maxTeamSize": 1,
+      "registrationDeadline": "2026-11-26T16:50:11.188Z",
+      "startTime": "2026-11-26T16:50:11.188Z",
+      "endTime": "2026-11-26T17:50:11.188Z",
+      "setupBufferMinutes": 30,
+      "teardownBufferMinutes": 30,
+      "venueId": "venue-main-auditorium",
+      "status": "published",
+      "registrationsCount": 2
+    },
+    {
+      "id": "evt-9f6a7fab",
+      "clubId": "027a2a3c-8111-4ba5-bdf0-04c2d89a5026",
+      "title": "GenesisGP",
+      "description": "Club-hosted campus event with Crew Sync.",
+      "eventType": "Hackathon",
+      "tags": [
+        "AI",
+        "Workshop"
+      ],
+      "eligibilityDepartments": [
+        "All Departments"
+      ],
+      "eligibilityYears": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "minTeamSize": 1,
+      "maxTeamSize": 3,
+      "registrationDeadline": "2026-11-27T11:00:00+05:30",
+      "startTime": "2026-11-27T11:00:00+05:30",
+      "endTime": "2026-11-27T14:00:00+05:30",
+      "setupBufferMinutes": 30,
+      "teardownBufferMinutes": 30,
+      "venueId": "venue-seminar-b",
+      "status": "published",
+      "registrationsCount": 0
+    },
+    {
+      "id": "evt-53dd2747",
+      "clubId": "027a2a3c-8111-4ba5-bdf0-04c2d89a5026",
+      "title": "GenesisGP",
+      "description": "Club-hosted campus event with Crew Sync.",
+      "eventType": "Workshop",
+      "tags": [
+        "AI",
+        "Workshop"
+      ],
+      "eligibilityDepartments": [
+        "All Departments"
+      ],
+      "eligibilityYears": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "minTeamSize": 1,
+      "maxTeamSize": 3,
+      "registrationDeadline": "2026-11-27T11:00:00+05:30",
+      "startTime": "2026-11-27T11:00:00+05:30",
+      "endTime": "2026-11-27T14:00:00+05:30",
+      "setupBufferMinutes": 30,
+      "teardownBufferMinutes": 30,
+      "venueId": "venue-maker-studio",
+      "status": "pending_approval",
+      "registrationsCount": 0
+    },
+    {
+      "id": "cluster4-build24",
+      "clubId": "60b413cc-370e-4dd9-a907-216754ab1656",
+      "title": "Build/24 · Campus Hackathon",
+      "description": "CLUSTER4 hosts a 24-hour build for campus projects. Twelve teams can enter. The showcase includes three individually registered demo candidates with prepared project briefs.",
+      "eventType": "Hackathon",
+      "tags": [
+        "CLUSTER4",
+        "Campus technology"
+      ],
+      "eligibilityDepartments": [
+        "All Departments"
+      ],
+      "eligibilityYears": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "minTeamSize": 1,
+      "maxTeamSize": 4,
+      "maxTeams": 12,
+      "registrationDeadline": "2026-11-27T01:00:00.000Z",
+      "submissionDeadline": "2026-11-27T02:00:00.000Z",
+      "startTime": "2026-11-26T02:00:00.000Z",
+      "endTime": "2026-11-27T02:00:00.000Z",
+      "setupBufferMinutes": 0,
+      "teardownBufferMinutes": 0,
+      "venueId": "venue-maker-studio",
+      "status": "published",
+      "registrationsCount": 3
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-neural-spark",
+      "eventId": "evt-ai-hackathon",
+      "status": "forming",
+      "name": "Neural Spark",
+      "leaderId": "fixture-person-7",
+      "members": [
+        {
+          "userId": "fixture-person-7",
+          "name": "Demo member 07",
+          "email": "member7@example.invalid",
+          "role": "leader"
+        }
+      ]
+    },
+    {
+      "id": "team-byte-builders",
+      "eventId": "evt-ai-hackathon",
+      "status": "forming",
+      "name": "Byte Builders",
+      "leaderId": "fixture-person-8",
+      "members": [
+        {
+          "userId": "fixture-person-8",
+          "name": "Demo member 08",
+          "email": "member8@example.invalid",
+          "role": "leader"
+        }
+      ]
+    },
+    {
+      "id": "team-a30c3322",
+      "eventId": "evt-2d75c62e",
+      "status": "locked",
+      "lockedAt": "2026-11-25T16:50:11.207Z",
+      "name": "Demo member 09 (Solo)",
+      "leaderId": "fixture-person-9",
+      "members": [
+        {
+          "userId": "fixture-person-9",
+          "name": "Demo member 09",
+          "email": "member9@example.invalid",
+          "role": "leader"
+        }
+      ]
+    },
+    {
+      "id": "team-888349fd",
+      "eventId": "evt-2d75c62e",
+      "status": "locked",
+      "lockedAt": "2026-11-25T18:22:06.631Z",
+      "name": "Demo member 10 (Solo)",
+      "leaderId": "fixture-person-10",
+      "members": [
+        {
+          "userId": "fixture-person-10",
+          "name": "Demo member 10",
+          "email": "member10@example.invalid",
+          "role": "leader"
+        }
+      ]
+    },
+    {
+      "id": "4342508c-4d03-45e4-a582-2d01f842bd97",
+      "eventId": "cluster4-build24",
+      "status": "locked",
+      "lockedAt": "2026-11-26T00:40:50.942Z",
+      "name": "Team Wayfinder",
+      "leaderId": "fixture-person-11",
+      "members": [
+        {
+          "userId": "fixture-person-11",
+          "name": "Demo member 11",
+          "email": "member11@example.invalid",
+          "role": "leader"
+        }
+      ]
+    },
+    {
+      "id": "d5c08a90-c249-487d-8fa7-f719af961b68",
+      "eventId": "cluster4-build24",
+      "status": "locked",
+      "lockedAt": "2026-11-26T00:40:50.942Z",
+      "name": "Team Relay",
+      "leaderId": "fixture-person-12",
+      "members": [
+        {
+          "userId": "fixture-person-12",
+          "name": "Demo member 12",
+          "email": "member12@example.invalid",
+          "role": "leader"
+        }
+      ]
+    },
+    {
+      "id": "9253cedb-e720-4083-893c-201ed88e14fe",
+      "eventId": "cluster4-build24",
+      "status": "locked",
+      "lockedAt": "2026-11-26T00:40:50.942Z",
+      "name": "Team Loop",
+      "leaderId": "fixture-person-13",
+      "members": [
+        {
+          "userId": "fixture-person-13",
+          "name": "Demo member 13",
+          "email": "member13@example.invalid",
+          "role": "leader"
+        }
+      ]
+    }
+  ],
+  "tickets": [
+    {
+      "id": "reg-demo-1",
+      "eventId": "evt-ai-hackathon",
+      "eventTitle": "AI Hackathon",
+      "eventStartTime": "2026-11-28T10:00:00+05:30",
+      "eventEndTime": "2026-11-28T16:00:00+05:30",
+      "venueName": "Main Auditorium",
+      "venueBuilding": "Central Academic Block",
+      "teamId": "team-neural-spark",
+      "status": "registered",
+      "registeredAt": "2026-11-25T10:00:00+05:30",
+      "userId": "fixture-person-11",
+      "attendeeName": "Demo member 11",
+      "attendeeEmail": "member11@example.invalid",
+      "phone": "",
+      "college": "Demo College",
+      "customFields": {}
+    },
+    {
+      "id": "reg-demo-2",
+      "eventId": "evt-uiux-workshop",
+      "eventTitle": "UI/UX Workshop",
+      "eventStartTime": "2026-11-30T14:00:00+05:30",
+      "eventEndTime": "2026-11-30T16:00:00+05:30",
+      "venueName": "Design Lab",
+      "venueBuilding": "Innovation Wing 2F",
+      "status": "registered",
+      "registeredAt": "2026-11-25T10:15:00+05:30",
+      "userId": "fixture-person-9",
+      "attendeeName": "Demo member 09",
+      "attendeeEmail": "member9@example.invalid",
+      "phone": "",
+      "college": "Demo College",
+      "customFields": {}
+    },
+    {
+      "id": "reg-demo-3",
+      "eventId": "evt-ai-hackathon",
+      "eventTitle": "AI Hackathon",
+      "eventStartTime": "2026-11-28T10:00:00+05:30",
+      "eventEndTime": "2026-11-28T16:00:00+05:30",
+      "venueName": "Main Auditorium",
+      "venueBuilding": "Central Academic Block",
+      "status": "registered",
+      "registeredAt": "2026-11-25T10:20:00+05:30",
+      "userId": "fixture-person-12",
+      "attendeeName": "Demo member 12",
+      "attendeeEmail": "member12@example.invalid",
+      "phone": "",
+      "college": "Demo College",
+      "customFields": {}
+    },
+    {
+      "id": "reg-demo-4",
+      "eventId": "evt-ai-hackathon",
+      "eventTitle": "AI Hackathon",
+      "eventStartTime": "2026-11-28T10:00:00+05:30",
+      "eventEndTime": "2026-11-28T16:00:00+05:30",
+      "venueName": "Main Auditorium",
+      "venueBuilding": "Central Academic Block",
+      "status": "registered",
+      "registeredAt": "2026-11-25T10:25:00+05:30",
+      "userId": "fixture-person-14",
+      "attendeeName": "Demo member 14",
+      "attendeeEmail": "member14@example.invalid",
+      "phone": "",
+      "college": "Demo College",
+      "customFields": {}
+    },
+    {
+      "id": "reg-94dd0989",
+      "eventId": "evt-2d75c62e",
+      "eventTitle": "Intercollege demo rehearsal",
+      "eventStartTime": "2026-11-26T16:50:11.188Z",
+      "eventEndTime": "2026-11-26T17:50:11.188Z",
+      "venueName": "Main Auditorium",
+      "venueBuilding": "Central Academic Block",
+      "teamId": "team-a30c3322",
+      "status": "registered",
+      "registeredAt": "2026-11-25T16:50:11.207Z",
+      "userId": "fixture-person-9",
+      "attendeeName": "Demo member 09",
+      "attendeeEmail": "member9@example.invalid",
+      "phone": "",
+      "college": "Demo College",
+      "customFields": {}
+    },
+    {
+      "id": "reg-83126921",
+      "eventId": "evt-2d75c62e",
+      "eventTitle": "Intercollege demo rehearsal",
+      "eventStartTime": "2026-11-26T16:50:11.188Z",
+      "eventEndTime": "2026-11-26T17:50:11.188Z",
+      "venueName": "Main Auditorium",
+      "venueBuilding": "Central Academic Block",
+      "teamId": "team-888349fd",
+      "status": "registered",
+      "registeredAt": "2026-11-25T18:22:06.631Z",
+      "userId": "fixture-person-10",
+      "attendeeName": "Demo member 10",
+      "attendeeEmail": "member10@example.invalid",
+      "phone": "",
+      "college": "Demo College",
+      "customFields": {}
+    },
+    {
+      "id": "063ca873-f8f9-4e3c-9500-1516fcc0590b",
+      "eventId": "cluster4-build24",
+      "eventTitle": "Build/24 · Campus Hackathon",
+      "eventStartTime": "2026-11-26T02:00:00.000Z",
+      "eventEndTime": "2026-11-27T02:00:00.000Z",
+      "venueName": "Maker Studio",
+      "venueBuilding": "Robotics & Hardware Wing",
+      "teamId": "4342508c-4d03-45e4-a582-2d01f842bd97",
+      "status": "registered",
+      "registeredAt": "2026-11-26T00:40:50.942Z",
+      "eventRole": "contestant",
+      "userId": "fixture-person-11",
+      "attendeeName": "Demo member 11",
+      "attendeeEmail": "member11@example.invalid",
+      "phone": "",
+      "college": "Demo College",
+      "customFields": {}
+    },
+    {
+      "id": "f3098d87-d672-40fe-990a-75f5dd87629c",
+      "eventId": "cluster4-build24",
+      "eventTitle": "Build/24 · Campus Hackathon",
+      "eventStartTime": "2026-11-26T02:00:00.000Z",
+      "eventEndTime": "2026-11-27T02:00:00.000Z",
+      "venueName": "Maker Studio",
+      "venueBuilding": "Robotics & Hardware Wing",
+      "teamId": "d5c08a90-c249-487d-8fa7-f719af961b68",
+      "status": "registered",
+      "registeredAt": "2026-11-26T00:40:50.942Z",
+      "eventRole": "contestant",
+      "userId": "fixture-person-12",
+      "attendeeName": "Demo member 12",
+      "attendeeEmail": "member12@example.invalid",
+      "phone": "",
+      "college": "Demo College",
+      "customFields": {}
+    },
+    {
+      "id": "e52dfff8-2469-442b-9c84-0a2f87d0ab8b",
+      "eventId": "cluster4-build24",
+      "eventTitle": "Build/24 · Campus Hackathon",
+      "eventStartTime": "2026-11-26T02:00:00.000Z",
+      "eventEndTime": "2026-11-27T02:00:00.000Z",
+      "venueName": "Maker Studio",
+      "venueBuilding": "Robotics & Hardware Wing",
+      "teamId": "9253cedb-e720-4083-893c-201ed88e14fe",
+      "status": "registered",
+      "registeredAt": "2026-11-26T00:40:50.942Z",
+      "eventRole": "contestant",
+      "userId": "fixture-person-13",
+      "attendeeName": "Demo member 13",
+      "attendeeEmail": "member13@example.invalid",
+      "phone": "",
+      "college": "Demo College",
+      "customFields": {}
+    }
+  ],
+  "collegeIdCards": [
+    {
+      "id": "cid-demo-1",
+      "department": "CSE",
+      "year": 2,
+      "userId": "fixture-person-11",
+      "name": "Demo member 11",
+      "email": "member11@example.invalid",
+      "barcodeToken": "DEMO-1001",
+      "college": "Demo College",
+      "usn": null,
+      "isDemo": true
+    },
+    {
+      "id": "cid-demo-2",
+      "department": null,
+      "year": null,
+      "userId": "fixture-person-12",
+      "name": "Demo member 12",
+      "email": "member12@example.invalid",
+      "barcodeToken": "DEMO-1002",
+      "college": "Demo College",
+      "usn": null,
+      "isDemo": true
+    },
+    {
+      "id": "cid-demo-3",
+      "department": "CSE",
+      "year": 2,
+      "userId": "fixture-person-13",
+      "name": "Demo member 13",
+      "email": "member13@example.invalid",
+      "barcodeToken": "DEMO-1003",
+      "college": "Demo College",
+      "usn": null,
+      "isDemo": true
+    },
+    {
+      "id": "cid-demo-4",
+      "department": "CSE",
+      "year": 2,
+      "userId": "fixture-person-14",
+      "name": "Demo member 14",
+      "email": "member14@example.invalid",
+      "barcodeToken": "DEMO-1004",
+      "college": "Demo College",
+      "usn": null,
+      "isDemo": true
+    }
+  ],
+  "submissions": [
+    {
+      "id": "sub-09159fcc",
+      "eventId": "evt-2d75c62e",
+      "teamId": "team-a30c3322",
+      "title": "Campus project",
+      "description": "Working prototype",
+      "submittedAt": "2026-11-25T16:50:11.213Z",
+      "submittedBy": "fixture-person-9",
+      "links": [],
+      "fileUrls": []
+    },
+    {
+      "id": "75094b4a-ca51-4520-aea8-da56e5ad46ee",
+      "eventId": "cluster4-build24",
+      "teamId": "4342508c-4d03-45e4-a582-2d01f842bd97",
+      "title": "QuietRoute",
+      "description": "Model step-free paths as a graph. Filter closed entrances and return an alternative route.",
+      "problemStatement": "Students need accessible paths when entrances close.",
+      "submittedAt": "2026-11-26T00:40:50.942Z",
+      "submittedBy": "fixture-person-11",
+      "links": [],
+      "fileUrls": [
+        "https://campusbee.vercel.app/cluster4-projects/QuietRoute.txt"
+      ]
+    },
+    {
+      "id": "2af84da8-3c55-41fb-bc7e-0c3cc86997c7",
+      "eventId": "cluster4-build24",
+      "teamId": "d5c08a90-c249-487d-8fa7-f719af961b68",
+      "title": "LabShare",
+      "description": "Track inventory and reservation windows. Reject overlapping reservations for the same kit.",
+      "problemStatement": "Students struggle to find equipment across labs.",
+      "submittedAt": "2026-11-26T00:40:50.942Z",
+      "submittedBy": "fixture-person-12",
+      "links": [],
+      "fileUrls": [
+        "https://campusbee.vercel.app/cluster4-projects/LabShare.txt"
+      ]
+    },
+    {
+      "id": "9153ca3d-2650-48af-8194-2ee383bafaed",
+      "eventId": "cluster4-build24",
+      "teamId": "9253cedb-e720-4083-893c-201ed88e14fe",
+      "title": "PlatePlan",
+      "description": "Aggregate opt-in meal counts by dining hall and time slot to estimate the next service.",
+      "problemStatement": "Campus kitchens need earlier signals about meal demand.",
+      "submittedAt": "2026-11-26T00:40:50.942Z",
+      "submittedBy": "fixture-person-13",
+      "links": [],
+      "fileUrls": [
+        "https://campusbee.vercel.app/cluster4-projects/PlatePlan.txt"
+      ]
+    }
+  ],
+  "rubrics": [
+    {
+      "id": "rub-1",
+      "eventId": "evt-ai-hackathon",
+      "name": "Technical Execution",
+      "description": "Working prototype, code quality, and system design",
+      "maxScore": 40,
+      "weight": 1,
+      "sortOrder": 1
+    },
+    {
+      "id": "rub-2",
+      "eventId": "evt-ai-hackathon",
+      "name": "Campus Impact & Grounding",
+      "description": "Relevance to campus problem and data accuracy",
+      "maxScore": 35,
+      "weight": 1,
+      "sortOrder": 2
+    },
+    {
+      "id": "rub-3",
+      "eventId": "evt-ai-hackathon",
+      "name": "UX & Presentation",
+      "description": "Clarity of demo and usability",
+      "maxScore": 25,
+      "weight": 1,
+      "sortOrder": 3
+    },
+    {
+      "id": "rub-d873fd54",
+      "eventId": "evt-2d75c62e",
+      "name": "Overall project score",
+      "description": "Quality of execution, impact, and presentation.",
+      "maxScore": 100,
+      "weight": 1,
+      "sortOrder": 1
+    },
+    {
+      "id": "rub-a96e3787",
+      "eventId": "evt-9f6a7fab",
+      "name": "Overall project score",
+      "description": "Quality of execution, impact, and presentation.",
+      "maxScore": 100,
+      "weight": 1,
+      "sortOrder": 1
+    },
+    {
+      "id": "rub-2c24ceb1",
+      "eventId": "evt-53dd2747",
+      "name": "Overall project score",
+      "description": "Quality of execution, impact, and presentation.",
+      "maxScore": 100,
+      "weight": 1,
+      "sortOrder": 1
+    }
+  ],
+  "attendance": [
+    {
+      "id": "att-a886b4b0",
+      "eventId": "cluster4-build24",
+      "teamId": "9253cedb-e720-4083-893c-201ed88e14fe",
+      "checkInTime": "2026-11-26T00:57:54.641Z",
+      "checkInMethod": "barcode",
+      "userId": "fixture-person-13"
+    },
+    {
+      "id": "att-5917ea5b",
+      "eventId": "cluster4-build24",
+      "teamId": "4342508c-4d03-45e4-a582-2d01f842bd97",
+      "checkInTime": "2026-11-26T00:58:11.209Z",
+      "checkInMethod": "barcode",
+      "userId": "fixture-person-11"
+    }
+  ],
+  "volunteers": [
+    {
+      "id": "vol-1",
+      "department": "Computer Science",
+      "year": 3,
+      "skills": [
+        "Frontend",
+        "React",
+        "Next.js",
+        "Stage Ops"
+      ],
+      "interests": [
+        "Hackathons",
+        "AI"
+      ],
+      "availabilityWindows": [
+        "2026-11-28 09:00-17:00"
+      ],
+      "consentToContact": true,
+      "userId": "fixture-person-7",
+      "name": "Demo member 07"
+    },
+    {
+      "id": "vol-2",
+      "department": "Electronics & Comm.",
+      "year": 3,
+      "skills": [
+        "Hardware",
+        "Embedded",
+        "Soldering",
+        "Power Setup"
+      ],
+      "interests": [
+        "Robotics",
+        "IoT"
+      ],
+      "availabilityWindows": [
+        "2026-11-28 10:00-16:00"
+      ],
+      "consentToContact": true,
+      "userId": "fixture-person-15",
+      "name": "Demo member 15"
+    },
+    {
+      "id": "vol-3",
+      "department": "Design & Media",
+      "year": 2,
+      "skills": [
+        "Media",
+        "Photography",
+        "Figma",
+        "Livestream"
+      ],
+      "interests": [
+        "UI/UX",
+        "Content Creation"
+      ],
+      "availabilityWindows": [
+        "2026-11-28 09:30-16:30",
+        "2026-11-30 13:00-17:00"
+      ],
+      "consentToContact": true,
+      "userId": "fixture-person-8",
+      "name": "Demo member 08"
+    }
+  ],
+  "clubMetrics": [
+    {
+      "clubId": "club-coding",
+      "periodLabel": "Oct–Nov 2026",
+      "eventCount": 5,
+      "registrationsCount": 380,
+      "attendanceCount": 312,
+      "activeMembersCount": 118,
+      "volunteerParticipationCount": 44
+    },
+    {
+      "clubId": "club-robotics",
+      "periodLabel": "Aug–Sep 2026",
+      "eventCount": 3,
+      "registrationsCount": 145,
+      "attendanceCount": 110,
+      "activeMembersCount": 49,
+      "volunteerParticipationCount": 18
+    },
+    {
+      "clubId": "club-robotics",
+      "periodLabel": "Oct–Nov 2026 (Simulated)",
+      "eventCount": 1,
+      "registrationsCount": 34,
+      "attendanceCount": 19,
+      "activeMembersCount": 22,
+      "volunteerParticipationCount": 5
+    },
+    {
+      "clubId": "club-design",
+      "periodLabel": "Oct–Nov 2026",
+      "eventCount": 4,
+      "registrationsCount": 210,
+      "attendanceCount": 178,
+      "activeMembersCount": 76,
+      "volunteerParticipationCount": 29
+    }
+  ],
+  "recommendations": [
+    {
+      "id": "rec-bb1790a0",
+      "type": "club_collaboration",
+      "clubId": "027a2a3c-8111-4ba5-bdf0-04c2d89a5026",
+      "title": "Collaborate with Coding Club",
+      "summary": "node and Coding Club can co-host \"Joint Campus Workshop\" combining  with Full-Stack Mentorship & Judging Pipelines.",
+      "explanation": "Matched on 0 shared theme(s) (complementary audience) and 3 complementary capabilities (Full-Stack Mentorship, Judging Pipelines, Cloud Credits).",
+      "sourceRecords": [
+        "027a2a3c-8111-4ba5-bdf0-04c2d89a5026",
+        "club-coding"
+      ],
+      "confidenceScore": 0.89,
+      "priority": "high",
+      "status": "pending_review",
+      "createdByAgent": "Club Collaboration Agent",
+      "suggestedActionLabel": "Propose Joint Role Split with Coding Club",
+      "createdAt": "2026-11-25T18:31:17.778Z"
+    },
+    {
+      "id": "rec-clash-1",
+      "type": "clash_resolution",
+      "eventId": "evt-robotics-workshop",
+      "clubId": "club-robotics",
+      "title": "Hard Venue Clash: Main Auditorium on 28 Nov (12:00–15:00)",
+      "summary": "Robotics Workshop overlaps with Coding Club’s AI Hackathon (10:00–16:00) in Main Auditorium.",
+      "explanation": "Deterministic schedule check detected an overlap of 3h 00m (plus 30m setup/teardown buffers) at Main Auditorium. Seminar Hall B (cap 150) is available 28 Nov 12:00–15:00, or Maker Studio (cap 60) fits 34 current registrations.",
+      "sourceRecords": [
+        "evt-ai-hackathon",
+        "evt-robotics-workshop",
+        "venue-main-auditorium"
+      ],
+      "confidenceScore": 1,
+      "priority": "critical",
+      "status": "pending_review",
+      "createdByAgent": "Event Coordination Agent",
+      "suggestedActionLabel": "Move Robotics Workshop to Seminar Hall B",
+      "createdAt": "2026-11-25T11:30:00+05:30"
+    },
+    {
+      "id": "rec-collab-1",
+      "type": "club_collaboration",
+      "eventId": "evt-ai-hackathon",
+      "clubId": "club-coding",
+      "title": "Joint Event Opportunity: AI + Robotics + Design Track",
+      "summary": "Co-host a hardware-AI track with Robotics Club and invite Design Club for UI/UX critique.",
+      "explanation": "Coding Club (AI/Full-Stack) and Robotics Club (Hardware/ROS) share AI & builder audiences, while Design Club can elevate hackathon prototypes with a pre-event UI/UX clinic.",
+      "sourceRecords": [
+        "club-coding",
+        "club-robotics",
+        "club-design"
+      ],
+      "confidenceScore": 0.91,
+      "priority": "high",
+      "status": "pending_review",
+      "createdByAgent": "Club Collaboration Agent",
+      "suggestedActionLabel": "Propose Joint Role Split",
+      "createdAt": "2026-11-25T11:35:00+05:30"
+    },
+    {
+      "id": "rec-health-1",
+      "type": "club_revival",
+      "clubId": "club-robotics",
+      "title": "Declining Activity Signal: Robotics Club (-55% Active Members)",
+      "summary": "Event frequency dropped from 3 to 1 and attendance fell from 110 to 19 across comparable periods.",
+      "explanation": "Sufficient 2-period history confirms a sustained dip in registrations and volunteer turnout. Recommended revival: host a beginner-friendly bot workshop and co-brand with Coding Club’s AI Hackathon.",
+      "sourceRecords": [
+        "club-robotics",
+        "metrics-oct-nov-2026"
+      ],
+      "confidenceScore": 0.88,
+      "priority": "high",
+      "status": "pending_review",
+      "createdByAgent": "Volunteer & Club Health Agent",
+      "suggestedActionLabel": "Review Revival Plan",
+      "createdAt": "2026-11-25T11:40:00+05:30"
+    }
+  ],
+  "reports": [
+    {
+      "id": "rep-d199bb4f",
+      "eventId": "evt-9f6a7fab",
+      "verifiedMetricsSnapshot": {
+        "capacity": 150,
+        "remaining": 150,
+        "registrationsCount": 0,
+        "attendanceCount": 0,
+        "attendanceRate": 0,
+        "noShowCount": 0,
+        "volunteerCount": 0,
+        "submissionCount": 0
+      },
+      "approvalStatus": "draft",
+      "createdAt": "2026-11-25T19:01:32.617Z",
+      "generatedNarrative": "Attendance and registration totals from the campus rehearsal.",
+      "organizerNotes": ""
+    }
+  ],
+  "round": {
+    "id": "cluster4-final",
+    "name": "Campus prototype review",
+    "description": "Review the problem, technical proposal and validation plan in each team brief.",
+    "start": "2026-11-26T00:40:50.942Z",
+    "end": "2026-11-27T02:00:00.000Z",
+    "deadline": "2026-12-03T00:40:50.942Z",
+    "anonymous": false,
+    "method": "average",
+    "criteria": [
+      {
+        "id": "57300066-f0d3-4faf-a2b9-fc701bccd8e8",
+        "name": "Problem and impact",
+        "maxScore": 30
+      },
+      {
+        "id": "5c1e2d37-ea69-4209-b1fc-4f3a70c01bb5",
+        "name": "Technical approach",
+        "maxScore": 40
+      },
+      {
+        "id": "6d85e95a-6d34-40fb-bdb5-e28d66c40b03",
+        "name": "Validation and presentation",
+        "maxScore": 30
+      }
+    ],
+    "entries": [
+      {
+        "teamId": "4342508c-4d03-45e4-a582-2d01f842bd97",
+        "alias": "Entry 01",
+        "brief": "Model step-free paths as a graph. Filter closed entrances and return an alternative route.",
+        "artifact": ""
+      },
+      {
+        "teamId": "d5c08a90-c249-487d-8fa7-f719af961b68",
+        "alias": "Entry 02",
+        "brief": "Track inventory and reservation windows. Reject overlapping reservations for the same kit.",
+        "artifact": ""
+      },
+      {
+        "teamId": "9253cedb-e720-4083-893c-201ed88e14fe",
+        "alias": "Entry 03",
+        "brief": "Aggregate opt-in meal counts by dining hall and time slot to estimate the next service.",
+        "artifact": ""
+      }
+    ],
+    "status": "open"
+  }
+}

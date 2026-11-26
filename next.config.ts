@@ -9,6 +9,13 @@ if (process.env.VERCEL_ENV === 'production') {
 }
 
 const nextConfig: NextConfig = {
+  async rewrites() {
+    return { beforeFiles: [{
+      source: '/api/:path((?!public/|health$).*)',
+      has: [{ type: 'cookie', key: 'campusbee_demo', value: '1' }],
+      destination: '/hosted-demo/:path',
+    }], afterFiles: [], fallback: [] };
+  },
   outputFileTracingExcludes: { "/*": [".campus-data/**"] },
   cacheComponents: true,
   partialPrefetching: true,

@@ -14,6 +14,9 @@ export default function JudgePortal({embedded=false}:{embedded?:boolean}){
   const [event,setEvent]=useState(''),[round,setRound]=useState('');
   async function refresh(){try{const d=await request('desk');setItems(d.items);setAuthed(true);setMsg('');}catch(e){setItems([]);setAuthed(false);setMsg(e instanceof Error?e.message:'Sign in again.');}}
   useEffect(()=>{const invitation=location.hash.slice(1);
+    if (invitation && new URLSearchParams(location.search).get('workspace') === 'demo')
+      document.cookie='campusbee_demo=1; Path=/; SameSite=Lax; Max-Age=28800';
+    else if (invitation) document.cookie='campusbee_demo=; Path=/; Max-Age=0; SameSite=Lax';
     const init=window.setTimeout(()=>{if(invitation){setInvite(invitation);history.replaceState(null,'',location.pathname);}void refresh();},0);
     const timer=window.setInterval(()=>{if(!document.hidden)void refresh();},60000);
     window.addEventListener('focus',refresh);return()=>{clearInterval(timer);clearTimeout(init);window.removeEventListener('focus',refresh);};

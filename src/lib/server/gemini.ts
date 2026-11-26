@@ -1,3 +1,4 @@
+import { hostedDemo } from './store';
 import { geminiApiKey } from './geminiConfig';
 import { GoogleGenAI } from '@google/genai';
 
@@ -5,7 +6,7 @@ export async function generateGroundedNarrative(
   prompt: string,
   fallbackText: string
 ): Promise<{ text: string; usedGemini: boolean }> {
-  const apiKey = geminiApiKey();
+  const apiKey = hostedDemo.getStore() ? undefined : geminiApiKey();
   if (!apiKey) {
     return { text: fallbackText, usedGemini: false };
   }

@@ -33,7 +33,7 @@ function Management({eventId}:{eventId:string}){
     try{
       const res=await fetch('/api/evaluation/manage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({eventId,revision:panel.revision,roundId:r?.id,...data,action})});
       const result=await res.json();if(!res.ok)throw Error(result.error);
-      if(result.invite)setInvite(location.origin+'/judge#'+result.invite);
+      if(result.invite)setInvite(location.origin+'/judge'+(document.cookie.split('; ').includes('campusbee_demo=1') ? '?workspace=demo' : '')+'#'+result.invite);
       if(action==='revoke')setInvite('');
       if(action==='round')setSelected('');
       setNotice(action==='publish'?'Results published.':'Changes saved.');

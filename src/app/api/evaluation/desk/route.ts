@@ -1,11 +1,15 @@
+import { hostedDemo } from '@/lib/server/store';
+import { demoSessionUser } from '@/lib/server/authGuard';
 import {NextRequest} from 'next/server';
 import {readInput,fail,Fault,load,persist,principal,respond,teams} from '@/lib/server/competition';
 import type {DeskItem} from '@/lib/judging/model';
 export async function GET(req:NextRequest){return respond(async()=>{
   const items:DeskItem[]=[];let sessions=0;
-  for(const c of req.cookies.getAll().filter(c=>c.name.startsWith('judge_access_'))){
+  const events = new Set(req.cookies.getAll().filter(c=>c.name.startsWith('judge_access_')).map(c=>c.name.slice(13)));
+  if (hostedDemo.getStore() && demoSessionUser(req)?.role === 'judge') events.add('cluster4-build24');
+  for(const eventId of events){
     try{
-      const w=await load(c.name.slice(13));const j=principal(req,w);sessions++;
+      const w=await load(eventId);const j=principal(req,w);sessions++;
       const assigned=w.state.evaluations.filter(e=>e.judgeId===j.id);
       const entrants=await teams(w.eventId,assigned.map(e=>e.teamId));
       for(const e of assigned){

@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
@@ -62,7 +63,7 @@ export interface CampusOSStore {
   reports: EventReport[];
 }
 
-function createInitialStore(): CampusOSStore {
+export function createInitialStore(): CampusOSStore {
   return {
     users: structuredClone(DEMO_USERS),
     accounts: [],
@@ -248,6 +249,9 @@ function createInitialStore(): CampusOSStore {
   };
 }
 
+// A hosted demo request owns its copy until the storage revision commits.
+export const hostedDemo = new AsyncLocalStorage<{store: CampusOSStore}>();
+
 const globalForStore = globalThis as unknown as {
   __campusOSStore?: CampusOSStore;
 };
@@ -256,6 +260,8 @@ const globalForStore = globalThis as unknown as {
 const snapshot = process.env.CAMPUS_DEMO_FILE || '.campus-data/local.json';
 
 export function saveDemoStore(store: CampusOSStore) {
+  const demo = hostedDemo.getStore();
+  if (demo) { demo.store = store; return; }
   mkdirSync(dirname(snapshot), { recursive: true });
   const temporary = snapshot + '.tmp';
   writeFileSync(temporary, JSON.stringify(store), { mode: 0o600 });
@@ -263,6 +269,8 @@ export function saveDemoStore(store: CampusOSStore) {
 }
 
 export function getStore(): CampusOSStore {
+  const demo = hostedDemo.getStore();
+  if (demo) return demo.store;
   if (!globalForStore.__campusOSStore) {
     globalForStore.__campusOSStore = existsSync(/* turbopackIgnore: true */ snapshot)
       ? JSON.parse(readFileSync(/* turbopackIgnore: true */ snapshot, 'utf8')) as CampusOSStore
@@ -275,6 +283,7 @@ export function getStore(): CampusOSStore {
 }
 
 export function getDataMode(): 'supabase' | 'local_seed' {
+  if (hostedDemo.getStore()) return 'local_seed';
   const key =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;

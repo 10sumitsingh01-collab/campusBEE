@@ -2,8 +2,8 @@ import 'server-only';
 import {randomBytes,randomUUID} from 'node:crypto';
 import {createClient} from '@supabase/supabase-js';
 import {NextRequest,NextResponse} from 'next/server';
-import {getRequestUser,canManageClub,sessionDigest} from './authGuard';
-import {getDataMode,getStore,saveDemoStore} from './store';
+import {demoSessionUser,getRequestUser,canManageClub,sessionDigest} from './authGuard';
+import {hostedDemo,getDataMode,getStore,saveDemoStore} from './store';
 import type {Competition,EntryTeam,PanelJudge,Project} from '@/lib/judging/model';
 import type {Submission} from '@/types/domain';
 export class Fault extends Error {constructor(public status:number,message:string){super(message)}}
@@ -87,6 +87,11 @@ export async function teams(eventId:string,only?:string[]):Promise<EntryTeam[]>{
 }
 export const cookieName=(eventId:string)=>'judge_access_'+eventId;
 export function principal(req:NextRequest,w:Workspace):PanelJudge{
+  if (hostedDemo.getStore()) {
+    const account = demoSessionUser(req);
+    const assigned = account?.role === 'judge' && w.state.judges.find(j => j.id === account.id && !j.revoked);
+    if (assigned) return assigned;
+  }
   const raw=req.cookies.get(cookieName(w.eventId))?.value;
   const judge=raw && w.state.judges.find(j=>!j.revoked && j.sessionExpires>Date.now() && j.sessionHash===sessionDigest(raw));
   if(!judge)fail(401,'Judge access expired or was revoked. Ask your organiser for a new invitation.');

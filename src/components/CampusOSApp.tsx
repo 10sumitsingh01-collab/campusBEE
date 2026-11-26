@@ -180,14 +180,17 @@ export default function CampusOSApp() {
         setRecommendations(data.recommendations ?? []);
         setClubMetrics(data.clubMetrics ?? []);
         const registrationId = window.sessionStorage.getItem('campusos_registration_event');
-        if (registrationId && data.user?.role === 'student') {
-          const event = (data.events as CampusEvent[]).find(e => e.id === registrationId);
+        const demoEvent = window.sessionStorage.getItem('campusbee_demo_event');
+        if ((registrationId || demoEvent) && data.user?.role === 'student') {
+          const event = (data.events as CampusEvent[]).find(e => e.id === registrationId ||
+            (data.dataMode === 'local_seed' && JSON.stringify([e.title,Date.parse(e.startTime)]) === demoEvent));
           if (event) {
             setPendingEvent(event);
             setActiveTab('teams');
           }
         }
         window.sessionStorage.removeItem('campusos_registration_event');
+        window.sessionStorage.removeItem('campusbee_demo_event');
         setLoading(false);
       })
       .catch(() => {
@@ -342,7 +345,7 @@ export default function CampusOSApp() {
   };
 
   const handleLogout = async () => {
-    if (isMockMode()) {
+    if (dataMode === 'local_seed') {
       const response = await fetch('/api/auth/session', { method: 'DELETE' });
       if (!response.ok) return;
       router.replace('/login');
@@ -482,7 +485,7 @@ export default function CampusOSApp() {
           <button className="workspace-brand" onClick={() => setActiveTab('home')} aria-label="campusBEE home">
             <BeeLogo/>campusBEE
           </button>
-          <span className="workspace-role">{ROLE_LABELS[role]}</span>
+          <span className="workspace-role">{ROLE_LABELS[role]}{dataMode === 'local_seed' && !isMockMode() ? ' · Demo' : ''}</span>
           <div className="workspace-account">
             {currentUser && <button className="account-profile" onClick={openProfileModal} aria-label={'Open profile for ' + currentUser.name}>
               <User size={17}/><span>{currentUser.name}</span>
@@ -792,7 +795,7 @@ export default function CampusOSApp() {
                 <>
                   {role==='judge' && <JudgePortal embedded/>}
                   {(role!=='judge'||events.some(ev=>ev.assignedToJudge)) && <CompetitionsView role={role} events={role==='judge'?events.filter(ev=>ev.assignedToJudge):events} teams={teams}/>}
-                  {role==='judge' && !events.some(ev=>ev.assignedToJudge) && <p className="work-page">No projects have been assigned directly to this judge account. For direct assignment, the organiser can select your account under Submissions after a candidate submits their project.</p>}
+                  {role==='judge' && (isMockMode() || dataMode === 'supabase') && !events.some(ev=>ev.assignedToJudge) && <p className="work-page">No projects have been assigned directly to this judge account. For direct assignment, the organiser can select your account under Submissions after a candidate submits their project.</p>}
                 </>
               )}
 

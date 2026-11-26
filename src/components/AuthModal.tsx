@@ -49,7 +49,9 @@ export default function AuthModal({
   const [showPassword, setShowPassword] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const [clubName, setClubName] = useState('');
-  const mockMode = isMockMode();
+  const localDemo = isMockMode();
+  const [environment, setEnvironment] = useState<'demo'|'college'>(() => initialMode === 'signup' || (typeof window !== 'undefined' && localStorage.getItem('campusbee_workspace') === 'demo') ? 'demo' : 'college');
+  const mockMode = localDemo || environment === 'demo';
 
   useEffect(() => {
     const element = dialog.current;
@@ -59,6 +61,7 @@ export default function AuthModal({
 
   function changeMode(nextMode: 'signin' | 'signup') {
     setMode(nextMode);
+    if (nextMode === 'signup') setEnvironment('demo');
     setStatusMessage(null);
     setShowPassword(false);
   }
@@ -70,12 +73,18 @@ export default function AuthModal({
 
     try {
       if (mockMode) {
-        const response = await fetch('/api/auth/session', { method: 'POST',
+        const response = await fetch(localDemo ? '/api/auth/session' : '/hosted-demo/auth/session', { method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mode, email, password, name, department, role: selectedRole, clubName }),
+          body: JSON.stringify({ mode, email, password, name, department, role: selectedRole, clubName: !localDemo && !clubName.trim() ? 'CLUSTER4' : clubName }),
         });
         const data = await response.json();
-        if (response.ok) onAuthenticated(data.user.role);
+        if (response.ok) {
+          if (!localDemo) localStorage.setItem('campusbee_workspace', 'demo');
+          if (selectedEvent && data.user.role === 'student') {
+            sessionStorage.setItem('campusbee_demo_event', JSON.stringify([selectedEvent.title,Date.parse(selectedEvent.startTime)]));
+          }
+          onAuthenticated(data.user.role);
+        }
         else setStatusMessage(data.error);
         return;
       }
@@ -106,6 +115,8 @@ export default function AuthModal({
       if (created.error) { setStatusMessage('Could not initialize your college profile.'); return; }
       const profile = await supabase.from('users').select('role').eq('id', user.id).single();
       if (profile.error || !profile.data) { setStatusMessage('Could not load your college role.'); return; }
+      localStorage.setItem('campusbee_workspace', 'college');
+      document.cookie = 'campusbee_demo=; Max-Age=0; Path=/; SameSite=Lax';
       onAuthenticated(profile.data.role);
     } catch {
       setStatusMessage('Could not connect. Please try again.');
@@ -160,6 +171,13 @@ export default function AuthModal({
           </p>
 
             <form onSubmit={handleSubmit} className="crew-auth-form">
+              {!localDemo && <label>Workspace
+                <select value={environment} disabled={loading} onChange={event => { setEnvironment(event.target.value as 'college'|'demo'); setStatusMessage(null); }}>
+                  <option value="demo">Demo workspace · all four roles</option>
+                  <option value="college">College workspace</option>
+                </select>
+                <small>{environment === 'demo' ? 'Shared practice events and teams. Use a fictional name and email for your demo account.' : 'Use your college email. The college assigns staff access.'}</small>
+              </label>}
               {mode === 'signup' && (
                 <>
                   {mockMode && <fieldset>
@@ -173,7 +191,7 @@ export default function AuthModal({
                       ))}
                     </div>
                   </fieldset>}
-                  {mockMode && selectedRole === 'club_organizer' && <label>Your new club name<input required value={clubName} onChange={e => setClubName(e.target.value)} /></label>}
+                  {mockMode && selectedRole === 'club_organizer' && <label> {localDemo ? 'Your new club name' : 'Demo club'}<input required={localDemo} placeholder={localDemo ? undefined : 'CLUSTER4'} value={clubName} onChange={e => setClubName(e.target.value)} /></label>}
                   <div className="crew-auth-fields">
                     <label>Full name
                       <input type="text" autoComplete="name" required value={name} onChange={(event) => setName(event.target.value)} />
@@ -185,7 +203,7 @@ export default function AuthModal({
                 </>
               )}
 
-              <label>College email
+              <label>{!localDemo && mockMode ? 'Demo email' : 'College email'}
                 <input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@campus.edu" />
               </label>
               <label htmlFor="auth-password">Password</label>

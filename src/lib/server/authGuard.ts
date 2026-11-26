@@ -45,6 +45,10 @@ export async function getRequestUser(
     };
   }
 
+  return demoSessionUser(request);
+}
+
+export function demoSessionUser(request: NextRequest): UserProfile | null {
   const token = request.cookies.get('campus_session')?.value;
   if (!token) return null;
   const store = getStore();

@@ -150,3 +150,14 @@
 .crew-auth-hero { background: linear-gradient(165deg,#1b78d6 10%,#206bbbc9 68%,#122e428c), url('/campus-panorama.webp') center / cover; }
 .crew-auth-eyebrow,.crew-auth-description { color:white; }
 .crew-auth-ticket { background:#b9f328; color:#111315; }
+
+.crew-auth-form select {
+  width: 100%;
+  border: 1px solid #c7d1da;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: white;
+  color: #111315;
+  font: inherit;
+}
+.crew-auth-form label > small { color: #475569; font-weight: 400; }

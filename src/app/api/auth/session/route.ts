@@ -1,8 +1,9 @@
 import { randomBytes, randomUUID, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { NextRequest, NextResponse } from 'next/server';
-import { getDataMode, getStore, saveDemoStore } from '@/lib/server/store';
+import { getDataMode, getStore, hostedDemo, saveDemoStore } from '@/lib/server/store';
 import { sessionDigest } from '@/lib/server/authGuard';
+import fixtures from '@/lib/server/hosted-demo-fixtures.json';
 import type { UserProfile } from '@/types/domain';
 
 const derive = promisify(scrypt);
@@ -33,11 +34,25 @@ export async function POST(request: NextRequest) {
     if (role === 'club_organizer' && !club) return failure('Enter the name of your club.', 400);
     if (store.accounts.some(a => a.profile.email === email)) return failure('An account already uses this email. Sign in to continue.', 409);
     const profile: UserProfile = { id: randomUUID(), email, name, role, department: String(input.department || 'General'), skills: [], interests: [] };
-    if (role === 'club_organizer') {
+    const trainingClub = hostedDemo.getStore() && store.clubs.find(c => c.name === 'CLUSTER4');
+    if (role === 'club_organizer' && trainingClub && club.toUpperCase() === 'CLUSTER4') {
+      profile.managedClubIds = [trainingClub.id];
+    } else if (role === 'club_organizer') {
       if (store.clubs.some(c => c.name.toLowerCase() === club.toLowerCase())) return failure('This club already exists. Choose a unique club name.', 409);
       const id = randomUUID();
       store.clubs.push({ id, name: club, slug: id, ownerId: profile.id, category: 'Student organization', description: '', interests: [], capabilities: [], memberCount: 1, status: 'active' });
       profile.managedClubIds = [id];
+    }
+    const practice = hostedDemo.getStore() && store.competitions?.['cluster4-build24'];
+    if (role === 'judge' && practice) {
+      practice.state.judges.push({ id: profile.id, name: profile.name, revoked: false,
+        inviteHash: '', inviteExpires: 0, sessionHash: '', sessionExpires: 0 });
+      for (const entry of fixtures.round.entries) {
+        practice.state.evaluations.push({ id: randomUUID(), roundId: fixtures.round.id,
+          teamId: entry.teamId, judgeId: profile.id, weight: 1, revision: 0, marks: {},
+          strengths: '', weaknesses: '', feedback: '', submittedAt: null });
+      }
+      practice.revision++;
     }
     account = { profile, salt, passwordHash: hash.toString('hex') };
     store.accounts.push(account);
@@ -50,6 +65,7 @@ export async function POST(request: NextRequest) {
   saveDemoStore(store);
   const response = NextResponse.json({ user: account.profile }, { status: signup ? 201 : 200 });
   response.cookies.set('campus_session', token, { httpOnly: true, sameSite: 'lax', path: '/', secure: request.nextUrl.protocol === 'https:', maxAge: lifetime });
+  if (hostedDemo.getStore()) response.cookies.set('campusbee_demo','1',{path:'/',sameSite:'lax',secure:request.nextUrl.protocol==='https:',maxAge:lifetime});
   return response;
 }
 
@@ -61,5 +77,6 @@ export async function DELETE(request: NextRequest) {
   saveDemoStore(store);
   const response = NextResponse.json({ signedOut: true });
   response.cookies.delete('campus_session');
+  if (hostedDemo.getStore()) response.cookies.delete('campusbee_demo');
   return response;
 }
