@@ -1,4 +1,17 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CampusBEE
+
+## Demo accounts
+
+On the sign-in screen, select **Demo workspace**. All four demo accounts use the password `12345678`. [Open CampusBEE sign-in](https://campusbee.vercel.app/login).
+
+| Role | Demo email |
+| --- | --- |
+| Student | `Student@bmsit.in` |
+| Club Organizer (CLUSTER4) | `Club@bmsit.in` |
+| Judge | `Judge@bmsit.in` |
+| College Admin | `Admin@bmsit.in` |
+
+To present the event workflow, open the sign-in page in four tabs and choose a different account in each. Each tab keeps its own session. The demo accounts share practice data, so use fictional details for registrations and submissions.
 
 ## Getting Started
 
