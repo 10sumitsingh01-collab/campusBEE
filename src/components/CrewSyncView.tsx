@@ -64,6 +64,53 @@ interface CrewSyncViewProps {
   onRecommendationAdded: (rec: AIRecommendation) => void;
 }
 
+type ServiceHealth = {
+  status: 'active' | 'fallback';
+  checkedAt: number;
+  diagnostics?: {
+    reason: 'verified' | 'missing_key' | 'provider_unavailable' | 'demo';
+    model?: string;
+    keyConfigured?: boolean;
+    supabaseConfigured?: boolean;
+  };
+};
+
+function useServiceHealth(diagnostics: boolean) {
+  const [health, setHealth] = useState<ServiceHealth | 'checking' | 'unknown'>('checking');
+  useEffect(() => {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    let inFlight = false;
+    async function check() {
+      clearTimeout(timer);
+      if (document.hidden || inFlight) return;
+      inFlight = true;
+      try {
+        const response = await campusFetch('/api/crew-sync/service-status' + (diagnostics ? '?diagnostics=1' : ''), {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error();
+        const data = await response.json();
+        if (!['active', 'fallback'].includes(data.status) || !Number.isFinite(data.checkedAt)) throw new Error();
+        if (!controller.signal.aborted) setHealth(data);
+      } catch {
+        if (!controller.signal.aborted) setHealth('unknown');
+      } finally {
+        inFlight = false;
+        if (!controller.signal.aborted) timer = setTimeout(check, 60_000);
+      }
+    }
+    void check();
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [diagnostics]);
+  return health;
+}
+
 export default function CrewSyncView({
   managedClubId,
   planMessage,
@@ -79,20 +126,16 @@ export default function CrewSyncView({
   onRecommendationAction,
   onRecommendationAdded,
 }: CrewSyncViewProps) {
-  const [geminiConfigured, setGeminiConfigured] = useState<boolean | null>(null);
-  useEffect(() => {
-    const controller = new AbortController();
-    campusFetch('/api/health', { signal: controller.signal, cache: 'no-store' })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setGeminiConfigured(data.services.gemini); })
-      .catch(() => {});
-    return () => controller.abort();
-  }, []);
   const [reportBusy,setReportBusy] = useState(false);
   const [reportError,setReportError] = useState('');
   const [reportSource, setReportSource] = useState('');
   const admin = role === 'college_admin';
   const [tool, setTool] = useState(admin ? 'Campus overview' : 'Schedule');
+  const settingsOpen = admin && tool === 'AI settings';
+  const health = useServiceHealth(settingsOpen);
+  const status = typeof health === 'string' ? health : health.status;
+  const diagnostics = typeof health === 'object' ? health.diagnostics : undefined;
+  const statusLabel = { active: 'AI Services Active', fallback: 'Campus templates active', checking: 'Checking AI service…', unknown: 'AI status unavailable' }[status];
   const [scanNote, setScanNote] = useState('');
   const [moving, setMoving] = useState(false);
   const [coordLoading, setCoordLoading] = useState(false);
@@ -255,9 +298,11 @@ export default function CrewSyncView({
       <div className="work-page py-10 max-w-5xl mx-auto px-6 space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="space-y-1">
-            <h1 className="text-3xl font-semibold text-[#4D4D4D]">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><h1 className="text-3xl font-semibold text-[#4D4D4D]">
               Crew Sync AI
             </h1>
+              <span className="crew-service-status" data-status={status} role="status">{statusLabel}</span>
+            </div>
             <p className="text-sm text-[#717171]">
               {admin ? 'Review hosting requests, campus venue conflicts and event reports.' : 'Plan club events, coordinate volunteers and draft event reports.'}
             </p>
@@ -273,7 +318,7 @@ export default function CrewSyncView({
         </div>
 
         <nav className="tool-nav" aria-label="Crew Sync tools">
-          {(admin ? ['Campus overview','Schedule','Reports'] : ['Schedule', 'Collaborations', 'Volunteers & clubs', 'Reports']).map(name => <button key={name} aria-pressed={tool === name} onClick={() => setTool(name)}>{name}</button>)}
+          {(admin ? ['Campus overview','Schedule','Reports','AI settings'] : ['Schedule', 'Collaborations', 'Volunteers & clubs', 'Reports']).map(name => <button key={name} aria-pressed={tool === name} onClick={() => setTool(name)}>{name}</button>)}
         </nav>
         {admin && tool==='Campus overview' && <section className="space-y-3"><h2>Campus oversight</h2>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -282,12 +327,26 @@ export default function CrewSyncView({
           </div>
           <ClubActivityGraph clubs={clubs} events={calendarEvents}/>
         </section>}
-        <details className="gemini-settings">
-          <summary>{geminiConfigured === null ? 'Gemini configuration' : geminiConfigured ? 'Gemini key configured' : 'Campus templates active'} · AI settings</summary>
-          <p>Gemini can draft event blurbs, collaboration proposals and report summaries. Venue conflicts are checked against the campus schedule.</p>
-          <p>On the host computer, set <code>GEMINI_API_KEY</code> in <code>.env.local</code> and restart the server. All organisers use that connection. <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">Open Google AI Studio</a></p>
-        </details>
-        {tool !== 'Campus overview' && tool !== 'Schedule' && events.length > 0 && (
+        {settingsOpen && <section className="crew-ai-settings" aria-label="AI settings">
+          <h2>AI settings</h2>
+          {diagnostics && typeof health === 'object' ? <>
+            {diagnostics.reason === 'demo'
+              ? <p>This demo workspace uses campus templates for drafts and the campus schedule for conflict checks.</p>
+              : <>
+                <dl>
+                  <div><dt>Gemini API key</dt><dd>{diagnostics.keyConfigured ? 'Configured' : 'Missing'}</dd></div>
+                  <div><dt>Supabase configuration</dt><dd>{diagnostics.supabaseConfigured ? 'Configured' : 'Missing'}</dd></div>
+                  <div><dt>Model</dt><dd>{diagnostics.model}</dd></div>
+                </dl>
+                <p>{diagnostics.reason === 'verified' ? 'Gemini answered the latest generation check.'
+                  : diagnostics.reason === 'missing_key' ? 'Campus templates are available while Gemini is unconfigured.'
+                  : 'The latest Gemini generation check failed. Drafts can still use campus templates.'}</p>
+                <p>Manage <code>GEMINI_API_KEY</code> in the deployment settings or locally in <code>.env.local</code>. Redeploy or restart the server after changes. <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">Open Google AI Studio</a></p>
+              </>}
+            <small>Last checked {new Date(health.checkedAt).toLocaleTimeString()}</small>
+          </> : <p>{status === 'unknown' ? 'Unable to load service diagnostics.' : 'Checking service diagnostics…'}</p>}
+        </section>}
+        {!settingsOpen && tool !== 'Campus overview' && tool !== 'Schedule' && events.length > 0 && (
           <label className="flex items-center gap-3 text-sm font-medium">
             Event
             <select
@@ -304,7 +363,7 @@ export default function CrewSyncView({
             </select>
           </label>
         )}
-        {planMessage && <p role="status" className="text-sm">{planMessage}</p>}
+        {!settingsOpen && planMessage && <p role="status" className="text-sm">{planMessage}</p>}
 
         {/* 01 · Clash Detection */}
         <div hidden={tool !== 'Schedule'} className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">

@@ -12,6 +12,7 @@ import * as CrewSyncCollaborations from '@/app/api/crew-sync/collaborations/rout
 import * as CrewSyncCoordination from '@/app/api/crew-sync/coordination/route';
 import * as CrewSyncEventBlurb from '@/app/api/crew-sync/event-blurb/route';
 import * as CrewSyncRecommendationsId from '@/app/api/crew-sync/recommendations/[id]/route';
+import * as CrewSyncServiceStatus from '@/app/api/crew-sync/service-status/route';
 import * as CrewSyncReports from '@/app/api/crew-sync/reports/route';
 import * as CrewSyncVolunteers from '@/app/api/crew-sync/volunteers/route';
 import * as EvaluationDesk from '@/app/api/evaluation/desk/route';
@@ -50,6 +51,7 @@ const routes: [string, Partial<Record<string, Handler>>][] = [
   ['crew-sync/coordination', CrewSyncCoordination],
   ['crew-sync/event-blurb', CrewSyncEventBlurb],
   ['crew-sync/recommendations/[id]', CrewSyncRecommendationsId],
+  ['crew-sync/service-status', CrewSyncServiceStatus],
   ['crew-sync/reports', CrewSyncReports],
   ['crew-sync/volunteers', CrewSyncVolunteers],
   ['evaluation/desk', EvaluationDesk],

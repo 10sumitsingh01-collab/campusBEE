@@ -133,10 +133,8 @@
 .event-preview strong { display: block; font-size: 1.35rem; line-height: 1.15; padding-top: .3rem; overflow-wrap: anywhere; }
 .blurb-button { color: var(--action); font-weight: 650; font-size: .9rem; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding-block: .35rem; }
 .blurb-button:disabled { opacity: .55; cursor: default; }
-.blurb-draft, .gemini-settings { padding: .9rem 1.1rem; border-radius: 10px; background: var(--tint); color: #352e4c; }
-.gemini-settings summary { cursor: pointer; font-weight: 700; }
-.gemini-settings p, .blurb-draft p { font-size: .92rem; margin-block: .5rem; }
-.gemini-settings a { text-decoration: underline; }
+.blurb-draft { padding: .9rem 1.1rem; border-radius: 10px; background: var(--tint); color: #352e4c; }
+.blurb-draft p { font-size: .92rem; margin-block: .5rem; }
 
 @container (max-width: 380px) { .campus-bar { gap: .25rem; } .campus-login { padding-inline: .65rem; } .campus-bar nav button { padding-inline: .3rem; } }
 
